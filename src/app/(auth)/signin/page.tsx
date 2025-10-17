@@ -48,27 +48,11 @@ export default function SignInPage() {
     setIsLoading(true);
     setErrors({});
 
-    const result = await stack.signIn('password', {
-      email,
-      password,
-    });
-    
-    if (result.error) {
-      toast({
-        variant: "destructive",
-        title: "Login Gagal",
-        description: result.error.message,
-      });
-      setIsLoading(false);
-    } else {
-      router.push('/dashboard');
-    }
+    // This should now be a form post to the handler, or better, redirect to Stack's UI.
+    // For simplicity and correctness, we will redirect.
+    // The form submission logic is handled by Stackframe's UI.
+    router.push(stack.urls.signIn);
   };
-  
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true);
-    await stack.signIn('google');
-  }
 
   return (
      <div className="w-full max-w-sm mx-auto flex flex-col items-center">
@@ -87,7 +71,8 @@ export default function SignInPage() {
                     <h1 className="text-xl font-bold font-headline">{t('signin.title')}</h1>
                 </div>
 
-                <form onSubmit={handleSignIn} className="space-y-4">
+                {/* The form will now just be for UI, the button will link to Stackframe */}
+                <div className="space-y-4">
                     <div className="relative">
                         <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
                         <Input
@@ -97,7 +82,7 @@ export default function SignInPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
-                        disabled={isLoading || isGoogleLoading}
+                        disabled={true}
                         />
                          {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
                     </div>
@@ -110,7 +95,7 @@ export default function SignInPage() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
-                        disabled={isLoading || isGoogleLoading}
+                        disabled={true}
                         />
                         <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
                             {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -121,13 +106,12 @@ export default function SignInPage() {
                      {errors.form && <p className="text-sm text-center text-destructive">{errors.form}</p>}
                     
                     <Button
-                        type="submit"
+                        asChild
                         className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-base"
-                        disabled={isLoading || isGoogleLoading}
                     >
-                        {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : t('signin.submit_button')}
+                        <Link href={stack.urls.signIn}>{t('signin.submit_button')}</Link>
                     </Button>
-                </form>
+                </div>
 
                 <div className="relative flex items-center">
                   <Separator className="flex-1" />
@@ -136,17 +120,14 @@ export default function SignInPage() {
                 </div>
 
                 <Button
+                  asChild
                   variant="outline"
                   className="w-full h-12"
-                  onClick={handleGoogleSignIn}
-                  disabled={isLoading || isGoogleLoading}
                 >
-                  {isGoogleLoading ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  ) : (
+                  <Link href={stack.urls.googleSignIn}>
                     <Image src="/google.svg" alt="Google logo" width={20} height={20} className="mr-2" />
-                  )}
-                  {t('signin.google_button')}
+                    {t('signin.google_button')}
+                  </Link>
                 </Button>
             </div>
         </div>
