@@ -1,32 +1,28 @@
 'use client';
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
-import { Input } from '@/components/ui/input';
-import { Mail, Lock, User as UserIcon, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Mail, Lock, User as UserIcon, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
 import { useLanguage } from '@/providers/language-provider';
-import Image from 'next/image';
-import { Separator } from '@/components/ui/separator';
-import { useStackApp } from '@stackframe/stack';
 
 const signupSchema = z.object({
-    name: z.string().min(1, "Nama lengkap diperlukan"),
-    email: z.string().email("Format email tidak valid"),
-    password: z.string().min(6, "Password minimal 6 karakter"),
-    confirmPassword: z.string()
+  name: z.string().min(1, "Nama lengkap diperlukan"),
+  email: z.string().email("Format email tidak valid"),
+  password: z.string().min(6, "Password minimal 6 karakter"),
+  confirmPassword: z.string(),
 }).refine(data => data.password === data.confirmPassword, {
-    message: "Password tidak cocok",
-    path: ["confirmPassword"],
+  message: "Password tidak cocok",
+  path: ["confirmPassword"],
 });
 
 export default function SignUpPage() {
   const router = useRouter();
-  const stack = useStackApp();
   const { toast } = useToast();
   const { t } = useLanguage();
 
@@ -36,127 +32,116 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-     // The form submission logic is handled by Stackframe's UI.
-    router.push(stack.urls.signUp);
+    const validation = signupSchema.safeParse({ name, email, password, confirmPassword });
+    if (!validation.success) {
+      const newErrors: Record<string, string> = {};
+      validation.error.errors.forEach(err => {
+        newErrors[err.path[0]] = err.message;
+      });
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const res = await fetch('/handler/sign-up', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Pendaftaran gagal');
+
+      toast({
+        title: "Pendaftaran Berhasil",
+        description: "Silakan login sekarang",
+      });
+
+      router.push('/signin');
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Pendaftaran Gagal',
+        description: err.message,
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
-  
+
   return (
-    <div className="w-full max-w-sm mx-auto flex flex-col items-center">
-        <div className={cn("w-full rounded-2xl bg-card/60 backdrop-blur-lg shadow-2xl border border-white/10 overflow-hidden")}>
-             
-                <div className="p-8 space-y-6">
-                    <div className="flex items-center justify-center bg-secondary/80 rounded-full p-1 max-w-fit mx-auto">
-                         <Button variant="secondary" asChild className="rounded-full px-6 bg-primary text-primary-foreground shadow-md">
-                            <Link href={stack.urls.signUp}>{t('signup.signup_button')}</Link>
-                        </Button>
-                        <Button variant="ghost" asChild className="rounded-full px-6 text-muted-foreground">
-                            <Link href={stack.urls.signIn}>{t('signup.signin_button')}</Link>
-                        </Button>
-                    </div>
-
-                    <div className="text-center space-y-2">
-                        <h1 className="text-xl font-bold font-headline">{t('signup.title')}</h1>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="relative">
-                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                            <Input
-                            type="text"
-                            placeholder={t('signup.name_placeholder')}
-                            className="pl-10 h-12 bg-background/30 border-white/10 placeholder:text-muted-foreground"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            disabled={true}
-                            />
-                            {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
-                        </div>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                            <Input
-                            type="email"
-                            placeholder={t('signup.email_placeholder')}
-                            className="pl-10 h-12 bg-background/30 border-white/10 placeholder:text-muted-foreground"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            disabled={true}
-                            />
-                            {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
-                        </div>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                            <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder={t('signup.password_placeholder')}
-                            className="pl-10 pr-10 h-12 bg-background/30 border-white/10 placeholder:text-muted-foreground"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            disabled={true}
-                            />
-                            <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
-                                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                            </Button>
-                            {errors.password && <p className="text-xs text-destructive mt-1">{errors.password}</p>}
-                        </div>
-                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                            <Input
-                            type={showConfirmPassword ? "text" : "password"}
-                            placeholder={t('signup.confirm_password_placeholder')}
-                            className="pl-10 pr-10 h-12 bg-background/30 border-white/10 placeholder:text-muted-foreground"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            disabled={true}
-                            />
-                            <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                            </Button>
-                            {errors.confirmPassword && <p className="text-xs text-destructive mt-1">{errors.confirmPassword}</p>}
-                        </div>
-
-                         {errors.form && <p className="text-sm text-center text-destructive">{errors.form}</p>}
-                        
-                        <Button
-                            asChild
-                            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-base"
-                        >
-                            <Link href={stack.urls.signUp}>{t('signup.submit_button')}</Link>
-                        </Button>
-                    </div>
-                    
-                    <div className="relative flex items-center">
-                      <Separator className="flex-1" />
-                      <span className="mx-4 text-xs text-muted-foreground">{t('signup.separator')}</span>
-                      <Separator className="flex-1" />
-                    </div>
-
-                    <Button
-                      asChild
-                      variant="outline"
-                      className="w-full h-12"
-                    >
-                      <Link href={`${stack.urls.signIn}?p=google`}>
-                        <Image src="/google.svg" alt="Google logo" width={20} height={20} className="mr-2" />
-                        {t('signup.google_button')}
-                      </Link>
-                    </Button>
-
-                    <p className="text-center text-xs text-muted-foreground !mt-8">
-                        {t('signup.terms')}
-                    </p>
-                </div>
+    <div className="w-full max-w-sm mx-auto">
+      <form onSubmit={handleSignUp} className="space-y-4">
+        <div className="relative">
+          <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder={t('signup.name_placeholder')}
+            value={name}
+            onChange={e => setName(e.target.value)}
+            className="pl-10 h-12"
+          />
         </div>
+        <div className="relative">
+          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
+            type="email"
+            placeholder={t('signup.email_placeholder')}
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            className="pl-10 h-12"
+          />
+        </div>
+        <div className="relative">
+          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
+            type={showPassword ? 'text' : 'password'}
+            placeholder={t('signup.password_placeholder')}
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            className="pl-10 pr-10 h-12"
+          />
+          <Button type="button" variant="ghost" size="icon"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+            onClick={() => setShowPassword(!showPassword)}
+          >
+            {showPassword ? <EyeOff /> : <Eye />}
+          </Button>
+        </div>
+        <div className="relative">
+          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
+            type={showConfirmPassword ? 'text' : 'password'}
+            placeholder={t('signup.confirm_password_placeholder')}
+            value={confirmPassword}
+            onChange={e => setConfirmPassword(e.target.value)}
+            className="pl-10 pr-10 h-12"
+          />
+          <Button type="button" variant="ghost" size="icon"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+          >
+            {showConfirmPassword ? <EyeOff /> : <Eye />}
+          </Button>
+        </div>
+
+        <Button type="submit" className="w-full h-12" disabled={isLoading}>
+          {isLoading ? <Loader2 className="animate-spin" /> : t('signup.submit_button')}
+        </Button>
+      </form>
+
+      <p className="text-center mt-4">
+        {t('signup.have_account')}{' '}
+        <Link href="/signin" className="text-blue-500">{t('signup.signin_link')}</Link>
+      </p>
     </div>
   );
 }
