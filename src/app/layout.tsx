@@ -2,8 +2,6 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
-import { LanguageProvider } from '@/providers/language-provider';
-import { AuthProvider } from '@/providers/auth-provider';
 
 export const metadata: Metadata = {
   title: 'KreaTask',
@@ -31,10 +29,8 @@ export default function RootLayout({
           'min-h-screen bg-background font-body antialiased',
         )}
       >
-        <AuthProvider>
-            {children}
-            <Toaster />
-        </AuthProvider>
+        {children}
+        <Toaster />
       </body>
     </html>
   );

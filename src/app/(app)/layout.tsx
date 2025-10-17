@@ -12,9 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BottomNav } from "@/components/bottom-nav";
 import { TaskDataProvider, useTaskData } from "@/hooks/use-task-data";
 import { useSpotlightEffect } from "@/hooks/use-spotlight";
-import { useUser, useAuth } from '@stackframe/stack';
+import { useUser, useAuth, StackProvider } from '@stackframe/stack';
 import { Loader2 } from "lucide-react";
-import { AuthProvider } from "@/providers/auth-provider";
 
 const UserContext = createContext<{ currentUser: User | null }>({
   currentUser: null,
@@ -63,11 +62,13 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
+    <StackProvider>
       <LanguageProvider>
         <TaskDataProvider>
           <AppLayoutContent>{children}</AppLayoutContent>
         </TaskDataProvider>
       </LanguageProvider>
+    </StackProvider>
   );
 }
 

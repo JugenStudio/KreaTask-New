@@ -1,13 +1,13 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import { LanguageProvider } from '@/providers/language-provider';
-import { AuthProvider } from '@/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
+import { StackProvider } from '@stackframe/stack';
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
+    <StackProvider>
       <LanguageProvider>
         <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden">
           
@@ -25,6 +25,6 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </LanguageProvider>
-    </AuthProvider>
+    </StackProvider>
   );
 }
