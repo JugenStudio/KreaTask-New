@@ -2,10 +2,210 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+}
+
+// Models based on the previous Firestore structure
+
+// KreaTask User Model
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  avatarUrl String?
+  role      UserRole @default(UNASSIGNED)
+  jabatan   String?
+
+  tasksAssigned Task[]
+  revisions     Revision[]
+  comments      Comment[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+// Task Model
+model Task {
+  id            String   @id @default(cuid())
+  titleEn       String
+  titleId       String
+  descriptionEn String?
+  descriptionId String?
+  status        TaskStatus @default(TODO)
+  category      TaskCategory
+  value         Int
+  valueCategory ValueCategory
+  evaluator     Evaluator
+  approvedBy    String? // Name of the approver, not a direct relation
+
+  assignees   User[]
+  dueDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subtasks  Subtask[]
+  files     File[]
+  comments  Comment[]
+  revisions Revision[]
+
+  @@map("tasks")
+}
+
+// Subtask Model (related to Task)
+model Subtask {
+  id          String  @id @default(cuid())
+  title       String
+  isCompleted Boolean @default(false)
+
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String
+
+  @@index([taskId])
+  @@map("subtasks")
+}
+
+// File Model (related to Task)
+model File {
+  id   String @id @default(cuid())
+  name String
+  type String // 'video', 'image', 'illustration', 'document'
+  url  String @db.Text
+  size String
+  note String?
+
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String
+
+  @@index([taskId])
+  @@map("files")
+}
+
+// Comment Model (related to Task)
+model Comment {
+  id        String   @id @default(cuid())
+  contentEn String   @db.Text
+  contentId String   @db.Text
+  isPinned  Boolean  @default(false)
+  timestamp DateTime @default(now())
+
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String
+
+  @@index([authorId])
+  @@index([taskId])
+  @@map("comments")
+}
+
+// Revision History Model (related to Task)
+model Revision {
+  id        String   @id @default(cuid())
+  changeEn  String
+  changeId  String
+  timestamp DateTime @default(now())
+
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  authorId String
+
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId String
+
+  @@index([authorId])
+  @@index([taskId])
+  @@map("revisions")
+}
+
+// Notification Model
+model Notification {
+  id        String           @id @default(cuid())
+  message   String
+  type      NotificationType
+  read      Boolean          @default(false)
+  link      String?
+  taskId    String?          // Not a hard relation, just for reference
+  createdAt DateTime         @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+
+  @@index([userId])
+  @@map("notifications")
+}
+
+// Enums
+
+enum UserRole {
+  ADMIN
+  DIREKTUR_UTAMA
+  DIREKTUR_OPERASIONAL
+  JURNALIS
+  SOCIAL_MEDIA_OFFICER
+  DESAIN_GRAFIS
+  MARKETING
+  FINANCE
+  UNASSIGNED
+
+  @@map("UserRole")
+}
+
+enum TaskCategory {
+  Low
+  Medium
+  High
+  Critical
+
+  @@map("TaskCategory")
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  COMPLETED
+  BLOCKED
+
+  @@map("TaskStatus")
+}
+
+enum ValueCategory {
+  Rendah
+  Menengah
+  Tinggi
+  Kritis
+
+  @@map("ValueCategory")
+}
+
+enum Evaluator {
+  AI
+  DirekturOperasional
+  DirekturBisnis
+  DirekturUtama
+
+  @@map("Evaluator")
+}
+
+enum NotificationType {
+  TASK_ASSIGN
+  TASK_REVIEW
+  TASK_APPROVED
+  AI_SUGGESTION
+  VALIDATION_REQUEST
+  PERFORMANCE_ALERT
+  SYSTEM_UPDATE
+  SECURITY_ALERT
+
+  @@map("NotificationType")
 }
