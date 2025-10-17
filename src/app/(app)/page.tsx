@@ -2,12 +2,12 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useStack } from '@stackframe/stack';
+import { useStackApp } from '@stackframe/stack';
 import { Loader2 } from 'lucide-react';
 
 export default function WelcomePage() {
   const router = useRouter();
-  const stack = useStack();
+  const stack = useStackApp();
 
   useEffect(() => {
     if (stack.loading) return; 

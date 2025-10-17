@@ -6,8 +6,6 @@ import { usePathname } from 'next/navigation';
 import { LanguageProvider } from '@/providers/language-provider';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { StackProvider } from '@stackframe/stack';
-import { stackServerApp } from '@/stack'; // This is fine, it only contains config
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();

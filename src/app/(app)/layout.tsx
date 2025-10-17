@@ -20,15 +20,10 @@ const UserContext = createContext<{ currentUser: User | null }>({
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const { currentUserData, isLoading: isTaskDataLoading } = useTaskData();
   const isMobile = useIsMobile();
-  const pathname = usePathname();
   useSpotlightEffect();
   
   const currentUser = currentUserData;
   const auth = useAuth();
-
-  if (pathname.startsWith('/signin') || pathname.startsWith('/signup') || pathname.startsWith('/landing')) {
-      return <>{children}</>
-  }
   
   const isLoading = auth.loading || isTaskDataLoading;
 
@@ -46,7 +41,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
           <div className="flex min-h-screen w-full">
             {!isMobile && currentUser && <AppSidebar user={currentUser} />}
             <div className="flex flex-1 flex-col bg-transparent">
-              {currentUser && <Header />}
+              <Header />
               <main className="flex-1 p-4 md:p-6 lg:p-8 pb-24 md:pb-6">
                 {children}
               </main>
