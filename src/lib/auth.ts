@@ -1,75 +1,35 @@
 import NextAuth from 'next-auth';
-import Credentials from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
-import type { NextAuthConfig } from 'next-auth';
-import { prisma } from '@/lib/prisma'; // Import the singleton instance
+import { prisma } from '@/lib/prisma';
+import { authConfig } from '@/auth.config'; // Import the edge-safe config
 
-// This is the authentication configuration.
-// It is used to initialize the NextAuth handlers.
-export const config = {
+// This file combines the edge-safe config with the server-only PrismaAdapter.
+// The handlers (GET, POST) are used by the API route and can safely access the database.
+
+export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
-  providers: [
-    Credentials({
-      name: 'Credentials',
-      credentials: {
-        email: { label: 'Email', type: 'text' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials.password) {
-          return null;
-        }
-
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        });
-
-        if (!user || !user.password) {
-          return null;
-        }
-        
-        // In a real app, hash and compare passwords. This is for demonstration.
-        const isPasswordValid = credentials.password === user.password;
-
-        if (!isPasswordValid) {
-          return null;
-        }
-        
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        };
-      },
-    }),
-  ],
   callbacks: {
-    jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = (user as any).role;
-      }
-      return token;
-    },
-    session({ session, token }) {
+    ...authConfig.callbacks, // include the edge-safe callbacks
+    async session({ session, user }) {
+      // The `user` object here is from the database via the adapter
       if (session.user) {
-        session.user.id = token.id as string;
-        (session.user as any).role = token.role;
+        session.user.id = user.id;
+        (session.user as any).role = user.role;
       }
       return session;
     },
+    async signIn({ user, account, profile }) {
+        if (account?.provider === 'google') {
+            const existingUser = await prisma.user.findUnique({
+                where: { email: user.email! },
+            });
+            if (existingUser) {
+                return true; // User exists, sign in is allowed
+            }
+            // If user doesn't exist, NextAuth + PrismaAdapter will create them.
+        }
+        return true; // Allow sign in for credentials and existing Google users
+    }
   },
-  pages: {
-    signIn: '/signin',
-  },
-  session: {
-    strategy: 'jwt',
-  },
-  secret: process.env.AUTH_SECRET,
-} satisfies NextAuthConfig;
-
-// handlers contains the GET and POST methods that interact with the database.
-// DO NOT import this into middleware. Only use it in API routes.
-// auth, signIn, and signOut are edge-compatible helpers.
-export const { handlers, auth, signIn, signOut } = NextAuth(config);
+});

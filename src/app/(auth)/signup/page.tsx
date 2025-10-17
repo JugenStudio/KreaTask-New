@@ -10,6 +10,9 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
 import { useLanguage } from '@/providers/language-provider';
+import Image from 'next/image';
+import { Separator } from '@/components/ui/separator';
+import { signIn } from 'next-auth/react';
 
 const signupSchema = z.object({
     name: z.string().min(1, "Nama lengkap diperlukan"),
@@ -34,6 +37,7 @@ export default function SignUpPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -82,12 +86,18 @@ export default function SignUpPage() {
       setIsLoading(false);
     }
   };
+  
+  const handleGoogleSignUp = async () => {
+    setIsGoogleLoading(true);
+    await signIn('google', { callbackUrl: '/dashboard' });
+    setIsGoogleLoading(false);
+  }
 
 
   return (
     <div className="w-full max-w-sm mx-auto flex flex-col items-center">
         <div className={cn("w-full rounded-2xl bg-card/60 backdrop-blur-lg shadow-2xl border border-white/10 overflow-hidden")}>
-             <form onSubmit={handleSignUp}>
+             
                 <div className="p-8 space-y-6">
                     <div className="flex items-center justify-center bg-secondary/80 rounded-full p-1 max-w-fit mx-auto">
                          <Button variant="secondary" asChild className="rounded-full px-6 bg-primary text-primary-foreground shadow-md">
@@ -102,7 +112,7 @@ export default function SignUpPage() {
                         <h1 className="text-xl font-bold font-headline">{t('signup.title')}</h1>
                     </div>
 
-                    <div className="space-y-4">
+                    <form onSubmit={handleSignUp} className="space-y-4">
                         <div className="relative">
                             <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
                             <Input
@@ -112,7 +122,7 @@ export default function SignUpPage() {
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             required
-                            disabled={isLoading}
+                            disabled={isLoading || isGoogleLoading}
                             />
                             {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
                         </div>
@@ -125,7 +135,7 @@ export default function SignUpPage() {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
-                            disabled={isLoading}
+                            disabled={isLoading || isGoogleLoading}
                             />
                             {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
                         </div>
@@ -138,7 +148,7 @@ export default function SignUpPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            disabled={isLoading}
+                            disabled={isLoading || isGoogleLoading}
                             />
                             <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
                                 {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -154,7 +164,7 @@ export default function SignUpPage() {
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
-                            disabled={isLoading}
+                            disabled={isLoading || isGoogleLoading}
                             />
                             <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                                 {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -167,17 +177,36 @@ export default function SignUpPage() {
                         <Button
                             type="submit"
                             className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-base"
-                            disabled={isLoading}
+                            disabled={isLoading || isGoogleLoading}
                         >
                             {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : t('signup.submit_button')}
                         </Button>
-                    </div>
+                    </form>
                     
+                    <div className="relative flex items-center">
+                      <Separator className="flex-1" />
+                      <span className="mx-4 text-xs text-muted-foreground">{t('signup.separator')}</span>
+                      <Separator className="flex-1" />
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      className="w-full h-12"
+                      onClick={handleGoogleSignUp}
+                      disabled={isLoading || isGoogleLoading}
+                    >
+                       {isGoogleLoading ? (
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      ) : (
+                        <Image src="/google.svg" alt="Google logo" width={20} height={20} className="mr-2" />
+                      )}
+                      {t('signup.google_button')}
+                    </Button>
+
                     <p className="text-center text-xs text-muted-foreground !mt-8">
                         {t('signup.terms')}
                     </p>
                 </div>
-            </form>
         </div>
     </div>
   );

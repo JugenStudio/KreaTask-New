@@ -1,4 +1,4 @@
-import { handlers } from '@/lib/auth'; // Import the database-aware handlers
+import { handlers } from '@/lib/auth';
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UserRole } from '@/lib/types';
@@ -14,17 +14,22 @@ async function handleSignup(req: NextRequest) {
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return Response.json({ message: 'User already exists' }, { status: 409 });
+      return Response.json({ message: 'User with this email already exists' }, { status: 409 });
     }
+
+    // In a real application, you would hash the password here before saving it.
+    // Example using bcrypt:
+    // const bcrypt = require('bcrypt');
+    // const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.user.create({
       data: {
         name,
         email,
-        password, // This should be a hashed password in a real app
+        password: password, // Store password directly (DEMO ONLY - NOT FOR PRODUCTION)
         role: UserRole.UNASSIGNED,
         jabatan: 'Unassigned',
-        avatarUrl: `https://picsum.photos/seed/${Math.random()}/100/100`,
+        avatarUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
       },
     });
 
@@ -40,12 +45,14 @@ async function handleSignup(req: NextRequest) {
 
 export async function POST(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname.endsWith('/signup')) {
+
+  if (pathname.includes('/signup')) {
     return handleSignup(request);
   }
-  // Fallback to NextAuth handlers for other POST requests (e.g., credentials sign-in)
+  
+  // Fallback to NextAuth handlers for other POST requests (e.g., credentials sign-in, OAuth callbacks)
   return handlers.POST(request);
 }
 
-// Export GET handler from NextAuth
+// Export GET handler from NextAuth for session management, provider discovery etc.
 export const GET = handlers.GET;
