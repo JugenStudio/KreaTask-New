@@ -48,8 +48,8 @@ export default function SignInPage() {
     setIsLoading(true);
     setErrors({});
 
-    // This should now be a form post to the handler, or better, redirect to Stack's UI.
-    // For simplicity and correctness, we will redirect.
+    // This form will now just be for UI, the button will link to Stackframe
+    // Redirecting to Stack's UI.
     // The form submission logic is handled by Stackframe's UI.
     router.push(stack.urls.signIn);
   };
@@ -124,7 +124,7 @@ export default function SignInPage() {
                   variant="outline"
                   className="w-full h-12"
                 >
-                  <Link href={stack.urls.googleSignIn}>
+                  <Link href={`${stack.urls.signIn}?p=google`}>
                     <Image src="/google.svg" alt="Google logo" width={20} height={20} className="mr-2" />
                     {t('signin.google_button')}
                   </Link>

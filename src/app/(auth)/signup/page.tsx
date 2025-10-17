@@ -146,7 +146,7 @@ export default function SignUpPage() {
                       variant="outline"
                       className="w-full h-12"
                     >
-                      <Link href={stack.urls.googleSignIn}>
+                      <Link href={`${stack.urls.signIn}?p=google`}>
                         <Image src="/google.svg" alt="Google logo" width={20} height={20} className="mr-2" />
                         {t('signup.google_button')}
                       </Link>
