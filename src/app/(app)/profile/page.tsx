@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/providers/language-provider";
-import { Camera, KeyRound, ShieldCheck } from "lucide-react";
+import { Camera, KeyRound, ShieldCheck, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCurrentUser } from "@/app/(app)/layout";
 import { useForm, type SubmitHandler } from "react-hook-form";
@@ -14,8 +14,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { useAuthActions } from "@/hooks/use-auth-actions";
-import { useRef, useState } from "react";
+import { useStack, useUser } from '@stackframe/stack';
+import { useRef, useState, useEffect } from "react";
 import { useTaskData } from "@/hooks/use-task-data";
 
 const profileFormSchema = z.object({
@@ -37,10 +37,11 @@ type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 
 export default function ProfilePage() {
   const { currentUser } = useCurrentUser();
+  const stack = useStack();
+  const user = useUser();
   const { t } = useLanguage();
   const { toast } = useToast();
   const { updateUserInFirestore } = useTaskData();
-  const { changeUserPassword, uploadProfilePicture } = useAuthActions();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -51,6 +52,16 @@ export default function ProfilePage() {
       email: currentUser?.email || "",
     },
   });
+
+  useEffect(() => {
+    if(currentUser) {
+        profileForm.reset({
+            name: currentUser.name,
+            email: currentUser.email,
+        })
+    }
+  }, [currentUser, profileForm]);
+
 
   const passwordForm = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordFormSchema),
@@ -65,7 +76,9 @@ export default function ProfilePage() {
     if (!currentUser) return;
 
     try {
-      await updateUserInFirestore(currentUser.id, { name: data.name, email: data.email });
+      await stack.updateUser({ name: data.name });
+      // The updateUserInFirestore is now handled by Neon Auth sync, but we can call it if needed for immediate local state update.
+      await updateUserInFirestore(currentUser.id, { name: data.name });
 
       toast({
         title: t('profile.toast.profile_updated_title'),
@@ -82,7 +95,15 @@ export default function ProfilePage() {
 
   const handlePasswordSubmit: SubmitHandler<PasswordFormValues> = async (data) => {
     try {
-      await changeUserPassword(data.currentPassword, data.newPassword);
+      const result = await stack.updatePassword({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      });
+
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
+
       toast({
         title: t('profile.toast.password_updated_title'),
         description: t('profile.toast.password_updated_desc'),
@@ -108,7 +129,11 @@ export default function ProfilePage() {
     setIsUploading(true);
 
     try {
-        await uploadProfilePicture(file);
+        const result = await stack.updateProfilePicture({ file });
+        if(result.error) throw new Error(result.error.message);
+        
+        await updateUserInFirestore(currentUser.id, { avatarUrl: result.data.url });
+        
         toast({
             title: t('profile.toast.avatar_updated_title'),
             description: t('profile.toast.avatar_updated_desc'),
@@ -125,7 +150,7 @@ export default function ProfilePage() {
   };
 
 
-  if (!currentUser) {
+  if (!currentUser || user.loading) {
     return (
         <div className="space-y-6 max-w-4xl mx-auto">
             <div>
@@ -186,7 +211,7 @@ export default function ProfilePage() {
               <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <Button variant="outline" size="icon" className="absolute bottom-0 right-0 rounded-full h-7 w-7 md:h-8 md:w-8 transition-all active:scale-95" onClick={handleAvatarClick} disabled={isUploading}>
-              <Camera className="h-3 w-3 md:h-4 md:w-4" />
+              {isUploading ? <Loader2 className="h-4 w-4 animate-spin"/> : <Camera className="h-3 w-3 md:h-4 md:w-4" />}
               <span className="sr-only">{t('profile.photo.change_button_sr')}</span>
             </Button>
           </div>
@@ -235,7 +260,7 @@ export default function ProfilePage() {
                     <Input id="role" defaultValue={t(`roles.${currentUser.role}` as any)} disabled />
                 </div>
                 <div className="flex justify-end">
-                    <Button type="submit" className="transition-all active:scale-95" disabled={profileForm.formState.isSubmitting}>{t('profile.details.save_button')}</Button>
+                    <Button type="submit" className="transition-all active:scale-95" disabled={profileForm.formState.isSubmitting}>{profileForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{t('profile.details.save_button')}</Button>
                 </div>
                 </CardContent>
             </Card>
@@ -286,7 +311,7 @@ export default function ProfilePage() {
                         />
                     </div>
                      <div className="flex justify-end">
-                        <Button type="submit" className="transition-all active:scale-95" disabled={passwordForm.formState.isSubmitting}>{t('profile.security.change_password_button')}</Button>
+                        <Button type="submit" className="transition-all active:scale-95" disabled={passwordForm.formState.isSubmitting}>{passwordForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{t('profile.security.change_password_button')}</Button>
                     </div>
                 </CardContent>
             </Card>

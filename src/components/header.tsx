@@ -39,10 +39,11 @@ import { useCurrentUser } from "@/app/(app)/layout";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { signOut } from "next-auth/react";
+import { useStack } from '@stackframe/stack';
 
 export function Header() {
   const { currentUser } = useCurrentUser();
+  const stack = useStack();
   const { t } = useLanguage();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
@@ -59,7 +60,8 @@ export function Header() {
   };
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: '/landing' });
+    await stack.signOut();
+    router.push('/landing');
   };
 
   if (!currentUser) {
@@ -82,7 +84,6 @@ export function Header() {
           </Link>
         )}
 
-        {/* Search bar */}
         <form onSubmit={handleSearch} className="relative flex-1 md:grow-0">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -94,13 +95,10 @@ export function Header() {
           />
         </form>
 
-        {/* Right section */}
         <div className="flex items-center gap-2 ml-auto">
           
-          {/* Notification Center */}
           <NotificationCenter currentUser={currentUser} />
           
-          {/* User menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">

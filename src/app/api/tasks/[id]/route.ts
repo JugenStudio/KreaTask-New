@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { useAuth } from '@stackframe/stack/use-auth';
 import { isEmployee } from '@/lib/roles';
 
 // GET a single task
 export async function GET(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const { user: authUser } = useAuth(request);
+  if (!authUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -27,8 +26,9 @@ export async function GET(request: Request, { params }: { params: { id: string }
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
     
-    // Authorization check
-    if (isEmployee((session.user as any).role) && !task.assignees.some(a => a.id === (session.user as any).id)) {
+    const currentUser = await prisma.user.findUnique({ where: { id: authUser.id }});
+
+    if (currentUser && isEmployee(currentUser.role) && !task.assignees.some(a => a.id === authUser.id)) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -41,8 +41,8 @@ export async function GET(request: Request, { params }: { params: { id: string }
 
 // UPDATE a task
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
+  const { user: authUser } = useAuth(request);
+  if (!authUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -134,11 +134,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
 // DELETE a task
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const { user: authUser } = useAuth(request);
+    if (!authUser) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    // Add role-based check if needed
 
     try {
         await prisma.task.delete({

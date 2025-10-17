@@ -1,19 +1,24 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { useAuth } from '@stackframe/stack/use-auth';
 import { isEmployee } from '@/lib/roles';
 import { Prisma } from '@prisma/client';
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
+  const { user: authUser } = useAuth(request);
 
-  if (!session || !session.user) {
+  if (!authUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const userRole = (session.user as any).role;
-  const userId = (session.user as any).id;
+  const userId = authUser.id;
+  const dbUser = await prisma.user.findUnique({ where: { id: userId }});
+  
+  if (!dbUser) {
+    return NextResponse.json({ error: 'User not found in database' }, { status: 404 });
+  }
+
+  const userRole = dbUser.role;
 
   try {
     let whereClause: Prisma.TaskWhereInput = {};
@@ -68,8 +73,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const { user: authUser } = useAuth(request);
+    if (!authUser) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

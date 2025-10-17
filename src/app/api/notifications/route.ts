@@ -1,16 +1,14 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { useAuth } from '@stackframe/stack/use-auth';
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
+  const { user: authUser } = useAuth(request);
 
-  if (!session || !session.user) {
+  if (!authUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-  const userId = (session.user as any).id;
+  const userId = authUser.id;
 
   try {
     const notifications = await prisma.notification.findMany({
@@ -29,9 +27,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-    const session = await getServerSession(authOptions);
+    const { user: authUser } = useAuth(request);
 
-    if (!session || !session.user) {
+    if (!authUser) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -65,9 +63,9 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-    const session = await getServerSession(authOptions);
+    const { user: authUser } = useAuth(request);
 
-    if (!session || !session.user) {
+    if (!authUser) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -83,7 +81,7 @@ export async function PATCH(request: Request) {
         const result = await prisma.notification.updateMany({
             where: {
                 id: { in: idsToUpdate },
-                userId: (session.user as any).id, // Ensure user can only update their own notifications
+                userId: authUser.id, // Ensure user can only update their own notifications
             },
             data: {
                 read: true,

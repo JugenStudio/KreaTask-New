@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSession } from 'next-auth/react';
+import { useAuth } from '@stackframe/stack';
 
 interface UseQueryOptions {
   enabled?: boolean;
@@ -14,10 +14,10 @@ export function useQuery<T>(
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(options.enabled);
   const [error, setError] = useState<Error | null>(null);
-  const { data: session } = useSession();
+  const auth = useAuth();
 
   const fetchData = useCallback(async () => {
-    if (!options.enabled || !session) {
+    if (!options.enabled || !auth.authenticated) {
       setIsLoading(false);
       return;
     }
@@ -37,16 +37,16 @@ export function useQuery<T>(
     } finally {
       setIsLoading(false);
     }
-  }, [url, options.enabled, session]);
+  }, [url, options.enabled, auth.authenticated]);
 
   useEffect(() => {
-    if (options.enabled) {
+    if (options.enabled && auth.authenticated) {
       fetchData();
-    } else {
+    } else if (!auth.authenticated) {
         setIsLoading(false);
         setData(null);
     }
-  }, [fetchData, options.enabled]);
+  }, [fetchData, options.enabled, auth.authenticated]);
 
   const refetch = () => {
     fetchData();

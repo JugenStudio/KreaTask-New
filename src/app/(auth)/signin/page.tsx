@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { signIn } from 'next-auth/react';
+import { useStack } from '@stackframe/stack';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
@@ -22,6 +22,7 @@ const signinSchema = z.object({
 export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const stack = useStack();
   const { toast } = useToast();
   const { t } = useLanguage();
 
@@ -34,17 +35,11 @@ export default function SignInPage() {
   
   useEffect(() => {
     const error = searchParams.get('error');
-    if (error === 'CredentialsSignin') {
+    if (error) {
       toast({
         variant: "destructive",
         title: "Login Gagal",
         description: "Email atau password yang Anda masukkan salah. Silakan coba lagi.",
-      });
-    } else if (error) {
-      toast({
-        variant: "destructive",
-        title: "Login Gagal",
-        description: "Terjadi kesalahan yang tidak diketahui. Silakan coba lagi.",
       });
     }
   }, [searchParams, toast]);
@@ -65,23 +60,28 @@ export default function SignInPage() {
     setIsLoading(true);
     setErrors({});
 
-    await signIn('credentials', {
-      redirect: true,
+    const result = await stack.signIn('credentials', {
       email,
       password,
-      callbackUrl: '/dashboard',
     });
     
-    // If signIn fails, NextAuth will redirect back with an error query param,
-    // which the useEffect hook will catch. If it succeeds, it will redirect
-    // to the callbackUrl. We don't need to manually handle success/error here.
-    setIsLoading(false);
+    if (result.error) {
+      toast({
+        variant: "destructive",
+        title: "Login Gagal",
+        description: result.error.message,
+      });
+      setIsLoading(false);
+    } else {
+      router.push('/dashboard');
+    }
   };
   
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
-    await signIn('google', { callbackUrl: '/dashboard' });
-    setIsGoogleLoading(false);
+    await stack.signIn('google');
+    // The user will be redirected by Stack, so we don't need to do anything here.
+    // If there's an error, it will be handled on the callback page.
   }
 
   return (

@@ -12,11 +12,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { BottomNav } from "@/components/bottom-nav";
 import { TaskDataProvider, useTaskData } from "@/hooks/use-task-data";
 import { useSpotlightEffect } from "@/hooks/use-spotlight";
-import { useSession } from "next-auth/react";
+import { useUser, useAuth } from '@stackframe/stack';
 import { Loader2 } from "lucide-react";
 import { AuthProvider } from "@/providers/auth-provider";
 
-// The context now holds the full User object from our database
 const UserContext = createContext<{ currentUser: User | null }>({
   currentUser: null,
 });
@@ -28,14 +27,13 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   useSpotlightEffect();
   
   const currentUser = currentUserData;
-  const { status } = useSession();
-
+  const auth = useAuth();
 
   if (pathname.startsWith('/signin') || pathname.startsWith('/signup') || pathname.startsWith('/landing')) {
       return <>{children}</>
   }
   
-  const isLoading = status === 'loading' || isTaskDataLoading;
+  const isLoading = auth.loading || isTaskDataLoading;
 
   if (isLoading || !currentUser) {
     return (
@@ -73,7 +71,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Custom hook to use the UserContext
 export const useCurrentUser = () => {
   const context = useContext(UserContext);
   if (context === undefined) {

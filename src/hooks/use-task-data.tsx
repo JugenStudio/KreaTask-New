@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo } from 'react';
 import type { Task, User, LeaderboardEntry, Notification, UserRole } from '@/lib/types';
 import { isEmployee } from '@/lib/roles';
-import { useSession } from 'next-auth/react';
+import { useAuth, useUser } from '@stackframe/stack';
 import { useQuery } from '@/hooks/use-query';
 import { useToast } from '@/hooks/use-toast';
 
@@ -75,31 +75,35 @@ export interface TaskDataContextType {
 export const TaskDataContext = createContext<TaskDataContextType | undefined>(undefined);
 
 export function TaskDataProvider({ children }: { children: ReactNode }) {
-    const { data: session, status } = useSession();
+    const auth = useAuth();
+    const userHook = useUser();
     const { toast } = useToast();
     
-    const { data: currentUserData, isLoading: isCurrentUserLoading } = useQuery<User>(
-        '/api/users/me', { enabled: status === 'authenticated' }
+    // Stack's useUser hook provides the basic user object.
+    // We fetch our extended user profile from our own API.
+    const { data: currentUserDataFromDB, isLoading: isCurrentUserLoading, refetch: refetchCurrentUser } = useQuery<User>(
+        '/api/users/me', { enabled: auth.authenticated }
     );
     
-    // We only fetch all users if the current user is not a regular employee
-    const shouldFetchAllUsers = status === 'authenticated' && currentUserData && !isEmployee(currentUserData.role);
+    const shouldFetchAllUsers = auth.authenticated && currentUserDataFromDB && !isEmployee(currentUserDataFromDB.role);
     const { data: allUsersFromDB, isLoading: isAllUsersLoading, refetch: refetchAllUsers } = useQuery<User[]>(
         '/api/users', { enabled: shouldFetchAllUsers }
     );
     
     const { data: tasksData, isLoading: isTasksLoading, refetch: refetchTasks } = useQuery<Task[]>(
-        '/api/tasks', { enabled: status === 'authenticated' }
+        '/api/tasks', { enabled: auth.authenticated }
     );
 
     const { data: notificationsData, isLoading: isNotifsLoading, refetch: refetchNotifications } = useQuery<Notification[]>(
-        '/api/notifications', { enabled: status === 'authenticated' }
+        '/api/notifications', { enabled: auth.authenticated }
     );
     
     const [allTasks, setAllTasks] = useState<Task[]>([]);
     const [users, setUsers] = useState<User[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [downloadHistory, setDownloadHistory] = useState<DownloadItem[]>([]);
+    
+    const currentUserData = currentUserDataFromDB;
 
     // Populate state from query hooks
     useEffect(() => { if (tasksData) setAllTasks(tasksData) }, [tasksData]);
@@ -148,14 +152,13 @@ export function TaskDataProvider({ children }: { children: ReactNode }) {
     };
 
     const updateTask = async (taskId: string, updates: Partial<Task>) => {
-        // Optimistic update
         setAllTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } as Task : t));
         try {
             await mutation(`/api/tasks/${taskId}`, 'PATCH', updates);
         } catch (e) {
             console.error(e);
             toast({ variant: 'destructive', title: "Update failed", description: "Could not save changes to the server."});
-            refetchTasks(); // Revert optimistic update on failure
+            refetchTasks(); 
         }
     };
 
@@ -180,6 +183,9 @@ export function TaskDataProvider({ children }: { children: ReactNode }) {
     const updateUserInFirestore = async (userId: string, data: Partial<User>) => {
         setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data } as User : u));
         await mutation(`/api/users/${userId}`, 'PATCH', data);
+        refetchCurrentUser();
+        refetchAllUsers();
+        userHook.mutate();
     };
 
     const deleteUser = async (userId: string) => {
@@ -206,12 +212,12 @@ export function TaskDataProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const value: TaskDataContextType = useMemo(() => ({
-        isLoading: status === 'loading' || isCurrentUserLoading || isTasksLoading || isNotifsLoading || isAllUsersLoading,
+        isLoading: auth.loading || userHook.loading || isCurrentUserLoading || isTasksLoading || isNotifsLoading || isAllUsersLoading,
         allTasks, setAllTasks, users, setUsers, currentUserData, leaderboardData, notifications, setNotifications,
         downloadHistory, setDownloadHistory, addTask, updateTask, deleteTask, addNotification, updateNotifications,
         updateUserInFirestore, deleteUser, addToDownloadHistory,
     }), [
-        status, isCurrentUserLoading, isTasksLoading, isNotifsLoading, isAllUsersLoading,
+        auth.loading, userHook.loading, isCurrentUserLoading, isTasksLoading, isNotifsLoading, isAllUsersLoading,
         allTasks, users, currentUserData, leaderboardData, notifications, 
         downloadHistory, addToDownloadHistory, deleteTask, addNotification, updateNotifications, updateUserInFirestore, deleteUser, addTask, updateTask
     ]);

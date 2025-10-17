@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { useLanguage } from '@/providers/language-provider';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
-import { signIn } from 'next-auth/react';
+import { useStack } from '@stackframe/stack';
 
 const signupSchema = z.object({
     name: z.string().min(1, "Nama lengkap diperlukan"),
@@ -26,6 +26,7 @@ const signupSchema = z.object({
 
 export default function SignUpPage() {
   const router = useRouter();
+  const stack = useStack();
   const { toast } = useToast();
   const { t } = useLanguage();
 
@@ -56,40 +57,33 @@ export default function SignUpPage() {
     setIsLoading(true);
     setErrors({});
 
-    try {
-      const response = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+    const result = await stack.signUp({
+      email,
+      password,
+      name,
+    });
+
+    if (result.error) {
+      setErrors({ form: result.error.message });
+      toast({
+        variant: "destructive",
+        title: "Pendaftaran Gagal",
+        description: result.error.message,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Gagal mendaftar. Silakan coba lagi.");
-      }
-
+    } else {
       toast({
         title: "Pendaftaran Berhasil",
         description: "Akun Anda telah dibuat. Silakan masuk.",
       });
       router.push('/signin');
-
-    } catch (error: any) {
-      setErrors({ form: error.message });
-      toast({
-        variant: "destructive",
-        title: "Pendaftaran Gagal",
-        description: error.message,
-      });
-    } finally {
-      setIsLoading(false);
     }
+    
+    setIsLoading(false);
   };
   
   const handleGoogleSignUp = async () => {
     setIsGoogleLoading(true);
-    await signIn('google', { callbackUrl: '/dashboard' });
+    await stack.signIn('google');
     setIsGoogleLoading(false);
   }
 

@@ -1,28 +1,30 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
+import { useAuth } from '@stackframe/stack/use-auth';
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
+  const { user } = useAuth(request);
 
-  if (!session || !session.user?.email) {
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
-    const user = await prisma.user.findUnique({
+    // Here, user.id is the ID from the auth provider (e.g., Neon Auth's user ID)
+    const appUser = await prisma.user.findUnique({
       where: {
-        email: session.user.email,
+        id: user.id,
       },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!appUser) {
+      // This case might happen if the user exists in Neon Auth but not in your user sync table yet.
+      // Or if the ID differs. Ensure your primary key `id` in `User` table matches Neon Auth's `user.id`.
+      return NextResponse.json({ error: 'User not found in application database' }, { status: 404 });
     }
 
     // Exclude password from the response
-    const { password, ...userWithoutPassword } = user;
+    const { password, ...userWithoutPassword } = appUser;
     return NextResponse.json(userWithoutPassword);
     
   } catch (error) {
@@ -32,11 +34,11 @@ export async function GET(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user?.email) {
+    const { user } = useAuth(request);
+    if (!user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    const userId = (session.user as any).id;
+    const userId = user.id;
 
     try {
         const body = await request.json();
