@@ -1,54 +1,73 @@
-
-import { doc, getDoc, setDoc, Firestore } from "firebase/firestore";
-import type { User as FirebaseUser } from "firebase/auth";
-import type { User } from "./types";
-import { UserRole } from "./types";
-
-/**
- * Memastikan dokumen user sudah ada di koleksi "users".
- * Jika belum ada, otomatis membuat dengan data default.
- * @param firestore Instance dari Firestore.
- * @param user Objek pengguna dari Firebase Auth.
- * @param defaultRole Peran default untuk pengguna baru.
- * @returns Promise yang resolve ke DocumentReference dari dokumen pengguna.
- */
-export async function ensureUserDoc(
-  firestore: Firestore,
-  user: FirebaseUser,
-  defaultRole: UserRole = UserRole.UNASSIGNED
-) {
-  const userRef = doc(firestore, "users", user.uid);
-  const snap = await getDoc(userRef);
-
-  if (!snap.exists()) {
-    const newUser: User = {
-      id: user.uid,
-      name: user.displayName || "User Baru",
-      email: user.email || "",
-      avatarUrl:
-        user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
-      role: defaultRole,
-      jabatan: "Unassigned",
-    };
-
-    await setDoc(userRef, newUser);
-
-    // Opsi: Tunggu hingga dokumen benar-benar dapat dibaca untuk menghindari race condition
-    // Pada praktiknya, setDoc yang di-await biasanya sudah cukup, tetapi ini adalah pengaman tambahan.
-    let ready = false;
-    for (let i = 0; i < 5; i++) {
-      const check = await getDoc(userRef);
-      if (check.exists()) {
-        ready = true;
-        break;
-      }
-      await new Promise((r) => setTimeout(r, 200)); // Sedikit penundaan antar percobaan
-    }
-
-    if (!ready) {
-        console.warn("Peringatan: Dokumen pengguna belum terbaca setelah dibuat, tetapi proses login tetap dilanjutkan.");
-    }
+{
+  "name": "nextn",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "prisma generate && NODE_ENV=production next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "prisma generate && next build"
+  },
+  "dependencies": {
+    "@genkit-ai/google-genai": "^1.20.0",
+    "@genkit-ai/next": "^1.20.0",
+    "@hookform/resolvers": "^4.1.3",
+    "@prisma/client": "^5.17.0",
+    "@prisma/extension-accelerate": "^1.1.0",
+    "@radix-ui/react-accordion": "^1.2.3",
+    "@radix-ui/react-alert-dialog": "^1.1.6",
+    "@radix-ui/react-avatar": "^1.1.3",
+    "@radix-ui/react-checkbox": "^1.1.4",
+    "@radix-ui/react-collapsible": "^1.1.11",
+    "@radix-ui/react-dialog": "^1.1.6",
+    "@radix-ui/react-dropdown-menu": "^2.1.6",
+    "@radix-ui/react-label": "^2.1.2",
+    "@radix-ui/react-menubar": "^1.1.6",
+    "@radix-ui/react-popover": "^1.1.6",
+    "@radix-ui/react-progress": "^1.1.2",
+    "@radix-ui/react-radio-group": "^1.2.3",
+    "@radix-ui/react-scroll-area": "^1.2.3",
+    "@radix-ui/react-select": "^2.1.6",
+    "@radix-ui/react-separator": "^1.1.2",
+    "@radix-ui/react-slider": "^1.2.3",
+    "@radix-ui/react-slot": "^1.2.3",
+    "@radix-ui/react-switch": "^1.1.3",
+    "@radix-ui/react-tabs": "^1.1.3",
+    "@radix-ui/react-toast": "^1.2.6",
+    "@radix-ui/react-tooltip": "^1.1.8",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^3.6.0",
+    "dotenv": "^16.5.0",
+    "embla-carousel-react": "^8.6.0",
+    "framer-motion": "^11.5.7",
+    "genkit": "^1.20.0",
+    "lucide-react": "^0.475.0",
+    "motion": "^10.18.0",
+    "next": "15.3.3",
+    "ogl": "^1.0.0-alpha.24",
+    "patch-package": "^8.0.0",
+    "react": "^18.3.1",
+    "react-beautiful-dnd": "^13.1.1",
+    "react-day-picker": "^8.10.1",
+    "react-dom": "^18.3.1",
+    "react-hook-form": "^7.54.2",
+    "recharts": "^2.15.1",
+    "tailwind-merge": "^3.0.1",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-beautiful-dnd": "^13.1.8",
+    "@types/react-dom": "^18",
+    "genkit-cli": "^1.20.0",
+    "postcss": "^8",
+    "prisma": "^5.17.0",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
   }
-
-  return userRef;
 }
