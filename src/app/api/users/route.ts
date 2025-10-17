@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/lib/auth';
 import { isEmployee } from '@/lib/roles';
-
-const prisma = new PrismaClient();
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -17,7 +15,17 @@ export async function GET(request: Request) {
 
   // Only allow non-employees to fetch the full user list
   if (isEmployee(userRole)) {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+     // Return only the current user if they are an employee
+     try {
+         const user = await prisma.user.findUnique({
+             where: { id: (session.user as any).id },
+             select: { id: true, name: true, email: true, avatarUrl: true, role: true, jabatan: true }
+         });
+         return NextResponse.json(user ? [user] : []);
+     } catch (error) {
+         console.error('Failed to fetch self:', error);
+         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+     }
   }
 
   try {

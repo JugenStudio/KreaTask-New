@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { useAuthActions } from "@/hooks/use-auth-actions";
 import { useRef, useState } from "react";
+import { useTaskData } from "@/hooks/use-task-data";
 
 const profileFormSchema = z.object({
   name: z.string().min(1, "Nama lengkap diperlukan."),
@@ -39,7 +39,8 @@ export default function ProfilePage() {
   const { currentUser } = useCurrentUser();
   const { t } = useLanguage();
   const { toast } = useToast();
-  const { updateUserProfile, updateUserEmail, changeUserPassword, uploadProfilePicture } = useAuthActions();
+  const { updateUserInFirestore } = useTaskData();
+  const { changeUserPassword, uploadProfilePicture } = useAuthActions();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -64,16 +65,7 @@ export default function ProfilePage() {
     if (!currentUser) return;
 
     try {
-      // Update name in Firestore
-      if (data.name !== currentUser.name) {
-        await updateUserProfile(currentUser.id, { name: data.name });
-      }
-
-      // Update email in Auth and Firestore
-      if (data.email !== currentUser.email) {
-        await updateUserEmail(data.email);
-        await updateUserProfile(currentUser.id, { email: data.email });
-      }
+      await updateUserInFirestore(currentUser.id, { name: data.name, email: data.email });
 
       toast({
         title: t('profile.toast.profile_updated_title'),
@@ -190,7 +182,7 @@ export default function ProfilePage() {
               accept="image/png, image/jpeg"
             />
             <Avatar className="h-20 w-20 md:h-24 md:w-24">
-              <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+              <AvatarImage src={currentUser.avatarUrl ?? undefined} alt={currentUser.name} />
               <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <Button variant="outline" size="icon" className="absolute bottom-0 right-0 rounded-full h-7 w-7 md:h-8 md:w-8 transition-all active:scale-95" onClick={handleAvatarClick} disabled={isUploading}>
@@ -232,7 +224,7 @@ export default function ProfilePage() {
                         render={({ field }) => (
                             <FormItem>
                                 <FormLabel>{t('profile.details.email')}</FormLabel>
-                                <FormControl><Input type="email" {...field} /></FormControl>
+                                <FormControl><Input type="email" {...field} disabled /></FormControl>
                                 <FormMessage />
                             </FormItem>
                         )}

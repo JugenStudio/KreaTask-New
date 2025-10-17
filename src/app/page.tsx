@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect } from 'react';
@@ -8,8 +7,6 @@ export default function WelcomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // The main layout now redirects to dashboard if a user is found,
-    // so this page primarily acts as a fallback or can redirect to signin.
     router.replace('/landing');
   }, [router]);
 

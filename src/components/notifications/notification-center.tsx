@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -12,8 +11,6 @@ import { formatDistanceToNow } from "date-fns";
 import { id as idLocale } from "date-fns/locale";
 import type { Notification, User } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { useFirestore } from "@/firebase";
-import { writeBatch, doc, deleteDoc } from "firebase/firestore";
 
 interface NotificationCenterProps {
     currentUser: User | null;
@@ -21,7 +18,6 @@ interface NotificationCenterProps {
 
 export function NotificationCenter({ currentUser }: NotificationCenterProps) {
   const { notifications, setNotifications, updateNotifications } = useTaskData();
-  const firestore = useFirestore();
   const [isOpen, setIsOpen] = useState(false);
   const [isSilent, setIsSilent] = useState(false);
   const router = useRouter();
@@ -36,16 +32,14 @@ export function NotificationCenter({ currentUser }: NotificationCenterProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Pre-load the audio element on component mount
     audioRef.current = new Audio('/sounds/notification.mp3');
   }, []);
 
   useEffect(() => {
     if (unreadCount > prevUnreadCountRef.current && !isSilent) {
         setIsAnimating(true);
-        // Play sound for new notification
         audioRef.current?.play().catch(error => console.error("Audio playback failed:", error));
-        const timer = setTimeout(() => setIsAnimating(false), 1000); // Animation duration
+        const timer = setTimeout(() => setIsAnimating(false), 1000);
         return () => clearTimeout(timer);
     }
     prevUnreadCountRef.current = unreadCount;
@@ -53,18 +47,11 @@ export function NotificationCenter({ currentUser }: NotificationCenterProps) {
 
   useEffect(() => {
     if (!isSilent) {
-      if (unreadCount > 0) {
-        document.title = `(${unreadCount}) 🔔 KreaTask`;
-      } else {
-        document.title = "KreaTask";
-      }
+      document.title = unreadCount > 0 ? `(${unreadCount}) 🔔 KreaTask` : "KreaTask";
     } else {
       document.title = "KreaTask";
     }
-    
-    return () => {
-      document.title = "KreaTask";
-    };
+    return () => { document.title = "KreaTask"; };
   }, [isSilent, unreadCount]);
 
   useEffect(() => {
@@ -73,7 +60,6 @@ export function NotificationCenter({ currentUser }: NotificationCenterProps) {
         setIsOpen(false);
       }
     };
-
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
@@ -83,7 +69,7 @@ export function NotificationCenter({ currentUser }: NotificationCenterProps) {
   const markAllAsRead = async () => {
     const notificationsToUpdate = userNotifications
         .filter(n => !n.read)
-        .map(n => ({ ...n, read: true }));
+        .map(n => ({ id: n.id, read: true }));
 
     if (notificationsToUpdate.length > 0) {
         await updateNotifications(notificationsToUpdate);
@@ -91,23 +77,16 @@ export function NotificationCenter({ currentUser }: NotificationCenterProps) {
   };
   
   const clearAllNotifications = async () => {
-    if (!firestore || !currentUser) return;
-
-    const batch = writeBatch(firestore);
-    userNotifications.forEach(notif => {
-      const notifRef = doc(firestore, 'notifications', notif.id);
-      batch.delete(notifRef);
-    });
-    
-    await batch.commit();
-
+    if (!currentUser) return;
+    // This needs a backend implementation
+    console.warn("clearAllNotifications not implemented on the backend yet.");
     setNotifications(prev => prev.filter(n => n.userId !== currentUser.id));
     setIsOpen(false);
   };
 
   const handleNotificationClick = async (notif: Notification) => {
     if (!notif.read) {
-        await updateNotifications([{ ...notif, read: true }]);
+        await updateNotifications([{ id: notif.id, read: true }]);
     }
     setIsOpen(false);
     if (notif.link) {

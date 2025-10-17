@@ -1,7 +1,6 @@
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Table,
   TableBody,
@@ -37,29 +36,27 @@ import { Trash2 } from "lucide-react";
 import { useLanguage } from "@/providers/language-provider";
 import { Card, CardContent } from "../ui/card";
 import { useTaskData } from "@/hooks/use-task-data";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
 import { Skeleton } from "../ui/skeleton";
 
 const roles: UserRole[] = Object.values(UserRole);
 
 interface UserTableProps {
+  initialUsers: User[];
   currentUser: User;
+  setUsers: (users: User[] | ((prev: User[]) => User[])) => void;
 }
 
-export function UserTable({ currentUser }: UserTableProps) {
+export function UserTable({ initialUsers, currentUser, setUsers }: UserTableProps) {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { updateUserInFirestore, deleteUser } = useTaskData();
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  const firestore = useFirestore();
-  const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-  const { data: users, isLoading } = useCollection<User>(usersCollectionRef);
+  const users = initialUsers;
+  const isLoading = !users;
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     await updateUserInFirestore(userId, { role: newRole });
-
     const user = users?.find((u) => u.id === userId);
     toast({
       title: t("settings.user_management.toast.role_updated_title"),
@@ -89,11 +86,9 @@ export function UserTable({ currentUser }: UserTableProps) {
   const canEditRole = (targetUser: User): boolean => {
     if (currentUser.id === targetUser.id) return false; // Cannot edit self
     if (isSuperAdmin(currentUser.role)) return true; // Super Admin can edit anyone
-    // Direktur Utama can edit anyone except Super Admin
     if (currentUser.role === UserRole.DIREKTUR_UTAMA) {
         return targetUser.role !== UserRole.ADMIN;
     }
-    // Directors can edit employees or unassigned users
     if (isDirector(currentUser.role)) {
       return isEmployee(targetUser.role) || targetUser.role === UserRole.UNASSIGNED;
     }
@@ -102,12 +97,11 @@ export function UserTable({ currentUser }: UserTableProps) {
 
   const canDeleteUser = (targetUser: User): boolean => {
      if (currentUser.id === targetUser.id) return false;
-     if (isSuperAdmin(currentUser.role)) return true; // Super admin can delete anyone
+     if (isSuperAdmin(currentUser.role)) return true;
      if (currentUser.role === UserRole.DIREKTUR_UTAMA) {
-        return targetUser.role !== UserRole.ADMIN; // Direktur Utama can delete anyone except super admin
+        return targetUser.role !== UserRole.ADMIN;
      }
      if (isDirector(currentUser.role)) {
-       // Directors can only delete employees or unassigned users
        return isEmployee(targetUser.role) || targetUser.role === UserRole.UNASSIGNED;
      }
      return false;
@@ -142,7 +136,7 @@ export function UserTable({ currentUser }: UserTableProps) {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9">
-                      <AvatarImage src={user.avatarUrl} alt={user.name} />
+                      <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
                       <AvatarFallback>{user.name.slice(0, 2)}</AvatarFallback>
                     </Avatar>
                     <div className="font-medium">{user.name}</div>
@@ -189,7 +183,7 @@ export function UserTable({ currentUser }: UserTableProps) {
             <CardContent className="p-3">
               <div className="flex items-center gap-3 mb-3">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={user.avatarUrl} alt={user.name} />
+                  <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
                   <AvatarFallback>{user.name.slice(0, 2)}</AvatarFallback>
                 </Avatar>
                 <div>

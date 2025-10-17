@@ -26,10 +26,12 @@ export function useQuery<T>(
     try {
       const res = await fetch(url);
       if (!res.ok) {
-        throw new Error(`Failed to fetch ${url}: ${res.statusText}`);
+        const errorData = await res.json();
+        throw new Error(errorData.error || `Failed to fetch ${url}: ${res.statusText}`);
       }
       const jsonData = await res.json();
       setData(jsonData);
+      setError(null);
     } catch (e) {
       setError(e instanceof Error ? e : new Error('An unknown error occurred'));
     } finally {
@@ -38,8 +40,13 @@ export function useQuery<T>(
   }, [url, options.enabled, session]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (options.enabled) {
+      fetchData();
+    } else {
+        setIsLoading(false);
+        setData(null);
+    }
+  }, [fetchData, options.enabled]);
 
   const refetch = () => {
     fetchData();

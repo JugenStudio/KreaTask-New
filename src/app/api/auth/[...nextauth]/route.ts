@@ -1,23 +1,23 @@
 import NextAuth from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { PrismaClient } from '@prisma/client';
-import type { User as PrismaUser } from '@prisma/client';
 import { UserRole } from '@/lib/types';
+import { NextRequest, NextResponse } from 'next/server';
 
 const prisma = new PrismaClient();
 
 // This is a separate handler for the signup API route.
-async function handleSignup(req: Request) {
+async function handleSignup(req: NextRequest) {
   try {
     const { name, email, password } = await req.json();
 
     if (!name || !email || !password) {
-      return new Response(JSON.stringify({ message: 'Missing fields' }), { status: 400 });
+      return NextResponse.json({ message: 'Missing fields' }, { status: 400 });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      return new Response(JSON.stringify({ message: 'User already exists' }), { status: 409 });
+      return NextResponse.json({ message: 'User already exists' }, { status: 409 });
     }
 
     // IMPORTANT: In a real app, hash the password before saving.
@@ -33,25 +33,25 @@ async function handleSignup(req: Request) {
       },
     });
 
-    return new Response(JSON.stringify(newUser), { status: 201 });
+    // Exclude password from the response
+    const { password: _, ...userWithoutPassword } = newUser;
+
+    return NextResponse.json(userWithoutPassword, { status: 201 });
   } catch (error) {
     console.error('Signup error:', error);
-    return new Response(JSON.stringify({ message: 'Internal Server Error' }), { status: 500 });
+    return NextResponse.json({ message: 'Internal Server Error' }, { status: 500 });
   }
 }
 
-// NextAuth handler
-const handler = NextAuth(authOptions);
-
-// We need to export both GET and POST for NextAuth to work.
-// We also add a custom POST handler to intercept signup requests.
-export async function POST(req: Request) {
-  const url = new URL(req.url);
-  if (url.pathname === '/api/auth/signup') {
+const handler = async (req: NextRequest, res: NextResponse) => {
+  // Check if it's a signup request
+  if (req.method === 'POST' && req.nextUrl.pathname.endsWith('/signup')) {
     return handleSignup(req);
   }
-  // Otherwise, fall back to the default NextAuth handler
-  return handler(req, {} as any);
+  
+  // Otherwise, default to NextAuth
+  return await NextAuth(req as any, res as any, authOptions);
 }
 
-export { handler as GET };
+
+export { handler as GET, handler as POST };

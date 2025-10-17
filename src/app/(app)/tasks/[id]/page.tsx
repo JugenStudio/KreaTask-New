@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useMemo, useCallback, useState } from "react";
@@ -43,7 +42,7 @@ export default function TaskDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
-  const { allTasks, users, isLoading, updateTask, addNotification, deleteTask } = useTaskData();
+  const { allTasks, users, isLoading, updateTask, addNotification, deleteTask, setAllTasks } = useTaskData();
   const { currentUser } = useCurrentUser();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const { toast } = useToast();
@@ -51,7 +50,7 @@ export default function TaskDetailPage() {
   
   const task = useMemo(() => allTasks.find((t) => t.id === id), [id, allTasks]);
   
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
 
   const handleUpdateComments = useCallback((updatedComments: CommentType[]) => {
     if (task) {
@@ -64,7 +63,7 @@ export default function TaskDetailPage() {
     updateTask(task.id, { status: newStatus });
     toast({
       title: t('task.status_change_toast.title'),
-      description: t('task.status_change_toast.description', { title: task.title[t.locale], status: t(`all_tasks.status.${newStatus.toLowerCase().replace(' ', '_')}`) }),
+      description: t('task.status_change_toast.description', { title: task.title[locale], status: t(`all_tasks.status.${newStatus.toLowerCase().replace(' ', '_')}`) }),
     });
   }
 

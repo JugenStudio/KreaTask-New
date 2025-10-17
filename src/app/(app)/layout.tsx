@@ -14,6 +14,7 @@ import { TaskDataProvider, useTaskData } from "@/hooks/use-task-data";
 import { useSpotlightEffect } from "@/hooks/use-spotlight";
 import { useSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
+import { AuthProvider } from "@/providers/auth-provider";
 
 // The context now holds the full User object from our database
 const UserContext = createContext<{ currentUser: User | null }>({
@@ -30,7 +31,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   const { status } = useSession();
 
 
-  if (pathname.startsWith('/signin') || pathname.startsWith('/signup')) {
+  if (pathname.startsWith('/signin') || pathname.startsWith('/signup') || pathname.startsWith('/landing')) {
       return <>{children}</>
   }
   
@@ -63,15 +64,15 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  // We no longer need a separate Firebase provider
-  
+  // The structure is simplified as Firebase providers are no longer needed.
   return (
-    <LanguageProvider>
-      <TaskDataProvider>
-        <AppLayoutContent>{children}</AppLayoutContent>
-      </TaskDataProvider>
-    </LanguageProvider>
+    <AuthProvider>
+        <LanguageProvider>
+          <TaskDataProvider>
+            <AppLayoutContent>{children}</AppLayoutContent>
+          </TaskDataProvider>
+        </LanguageProvider>
+    </AuthProvider>
   );
 }
 

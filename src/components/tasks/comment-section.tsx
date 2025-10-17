@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useActionState, useMemo, useRef } from "react";
@@ -69,7 +68,7 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
   }, [comments]);
 
   const handlePostComment = async () => {
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || !currentUser) return;
     setIsPosting(true);
     const translationResult = await getTranslations(newComment);
     if (translationResult.error) {
@@ -79,7 +78,7 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
 
     const comment: CommentType = {
       id: `comment-${Date.now()}`,
-      author: currentUser,
+      author: currentUser, // This will be enriched on the backend
       timestamp: new Date().toISOString(),
       content: translationResult.data!,
       isPinned: false,
@@ -87,7 +86,6 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
     
     const updatedComments = [...localComments, comment];
     onUpdateComments(updatedComments);
-    setLocalComments(updatedComments);
     
     setNewComment("");
     setIsPosting(false);
@@ -96,7 +94,6 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
   const handleDeleteComment = (commentId: string) => {
     const updatedComments = localComments.filter(c => c.id !== commentId);
     onUpdateComments(updatedComments);
-    setLocalComments(updatedComments);
   };
   
   const handleEditComment = (comment: CommentType) => {
@@ -116,7 +113,6 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
     );
     
     onUpdateComments(updatedComments);
-    setLocalComments(updatedComments);
 
     setEditingComment(null);
     setEditingText("");
@@ -128,7 +124,6 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
         c.id === commentId ? { ...c, isPinned: !c.isPinned } : c
     );
     onUpdateComments(updatedComments);
-    setLocalComments(updatedComments);
   };
   
   const handleReply = (authorName: string) => {
@@ -146,6 +141,7 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
   }
 
   const sortedComments = useMemo(() => {
+    if (!localComments) return [];
     return [...localComments].sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
@@ -157,7 +153,7 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-headline font-semibold">{t('comments.title')}</h3>
-        {localComments.length > 1 && (
+        {localComments && localComments.length > 1 && (
             <form action={formAction}>
                 <input type="hidden" name="commentThread" value={formatCommentThread()} />
                 <SummarizeButton />
@@ -181,7 +177,7 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
       <div className="space-y-4">
         <div className="flex gap-3">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={currentUser.avatarUrl} alt={currentUser.name} />
+            <AvatarImage src={currentUser.avatarUrl ?? undefined} alt={currentUser.name} />
             <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div className="w-full space-y-2">
@@ -208,7 +204,7 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
         {sortedComments.map((comment) => (
           <div key={comment.id} className={cn("flex gap-3", comment.isPinned && "rounded-lg bg-primary/10 p-3")}>
             <Avatar className="h-9 w-9">
-              <AvatarImage src={comment.author.avatarUrl} alt={comment.author.name} />
+              <AvatarImage src={comment.author.avatarUrl ?? undefined} alt={comment.author.name} />
               <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div className={cn("w-full rounded-md p-3", !comment.isPinned && "bg-secondary")}>
@@ -276,7 +272,7 @@ export function CommentSection({ taskId, comments, currentUser, onUpdateComments
             </div>
           </div>
         ))}
-        {localComments.length === 0 && (
+        {(!localComments || localComments.length === 0) && (
           <div className="text-center text-muted-foreground py-6">
             <p className="text-sm">No comments yet.</p>
             <p className="text-xs">Be the first to say something!</p>

@@ -1,21 +1,25 @@
-
 "use client";
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { Loader2 } from 'lucide-react';
 
 export default function WelcomePage() {
   const router = useRouter();
+  const { status } = useSession();
 
   useEffect(() => {
-    // The main layout now redirects to dashboard if a user is found,
-    // so this page primarily acts as a fallback or can redirect to signin.
-    router.replace('/dashboard');
-  }, [router]);
+    if (status === 'authenticated') {
+      router.replace('/dashboard');
+    } else if (status === 'unauthenticated') {
+      router.replace('/landing');
+    }
+  }, [status, router]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-      {/* This page will redirect to the dashboard or sign-in page */}
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
     </div>
   );
 }

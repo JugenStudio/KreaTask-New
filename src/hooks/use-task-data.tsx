@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, createContext, useContext, ReactNode, useMemo } from 'react';
-import type { Task, User, LeaderboardEntry, Notification } from '@/lib/types';
-import { UserRole } from '@/lib/types';
+import type { Task, User, LeaderboardEntry, Notification, UserRole } from '@/lib/types';
 import { isEmployee } from '@/lib/roles';
 import { useSession } from 'next-auth/react';
 import { useQuery } from '@/hooks/use-query';
+import { useToast } from '@/hooks/use-toast';
 
 type DownloadItem = {
   id: number;
@@ -24,10 +24,10 @@ const calculateLeaderboard = (tasks: Task[], users: User[]): LeaderboardEntry[] 
     const teamMembers = users.filter(user => isEmployee(user.role));
     if (teamMembers.length === 0) return [];
 
-    const userScores: { [key: string]: { name: string; score: number; tasksCompleted: number; avatarUrl: string | null; role: any; jabatan?: string; } } = {};
+    const userScores: { [key: string]: { id: string; name: string; score: number; tasksCompleted: number; avatarUrl: string | null; role: UserRole; jabatan?: string; } } = {};
 
     teamMembers.forEach(user => {
-      userScores[user.id] = { name: user.name, score: 0, tasksCompleted: 0, avatarUrl: user.avatarUrl, role: user.role, jabatan: user.jabatan };
+      userScores[user.id] = { id: user.id, name: user.name, score: 0, tasksCompleted: 0, avatarUrl: user.avatarUrl, role: user.role, jabatan: user.jabatan };
     });
 
     tasks.forEach(task => {
@@ -41,100 +41,83 @@ const calculateLeaderboard = (tasks: Task[], users: User[]): LeaderboardEntry[] 
       }
     });
 
-    const sortedUsers = Object.entries(userScores).sort(([, a], [, b]) => b.score - a.score);
+    const sortedUsers = Object.values(userScores).sort((a, b) => b.score - a.score);
 
-    return sortedUsers.map(([id, data], index) => ({
-      id,
+    return sortedUsers.map((data, index) => ({
+      ...data,
       rank: index + 1,
-      name: data.name,
-      score: data.score,
-      tasksCompleted: data.tasksCompleted,
       avatarUrl: data.avatarUrl || '',
-      role: data.role,
-      jabatan: data.jabatan,
     }));
 };
 
 export interface TaskDataContextType {
     isLoading: boolean;
     allTasks: Task[];
+    setAllTasks: (tasks: Task[] | ((prevTasks: Task[]) => Task[])) => void;
     users: User[];
+    setUsers: (users: User[] | ((prevUsers: User[]) => User[])) => void;
     currentUserData: User | null;
     leaderboardData: LeaderboardEntry[];
     notifications: Notification[];
     setNotifications: (notifications: Notification[] | ((prev: Notification[]) => Notification[])) => void;
-    updateNotifications: (notificationsToUpdate: Notification[]) => Promise<void>;
     downloadHistory: DownloadItem[];
     setDownloadHistory: (history: DownloadItem[] | ((prevState: DownloadItem[]) => DownloadItem[])) => void;
     addTask: (task: Partial<Task>) => Promise<void>;
     updateTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
     deleteTask: (taskId: string) => Promise<void>;
     addNotification: (notification: Partial<Notification>) => Promise<void>;
+    updateNotifications: (notificationsToUpdate: {id: string, read: boolean}[]) => Promise<void>;
     updateUserInFirestore: (userId: string, data: Partial<User>) => Promise<void>;
     deleteUser: (userId: string) => Promise<void>;
     addToDownloadHistory: (file: { name: string; size: string, url: string }, taskName: string, isRedownload?: boolean) => void;
-    setAllTasks: (tasks: Task[]) => void;
-    setUsers: (users: User[]) => void;
 }
 
 export const TaskDataContext = createContext<TaskDataContextType | undefined>(undefined);
 
 export function TaskDataProvider({ children }: { children: ReactNode }) {
     const { data: session, status } = useSession();
+    const { toast } = useToast();
     
     const { data: currentUserData, isLoading: isCurrentUserLoading } = useQuery<User>(
-        '/api/users/me',
-        { enabled: status === 'authenticated' }
+        '/api/users/me', { enabled: status === 'authenticated' }
     );
     
-    const { data: allUsersFromDB, isLoading: isAllUsersLoading } = useQuery<User[]>(
-        '/api/users',
-        { enabled: status === 'authenticated' && !!currentUserData && !isEmployee(currentUserData.role) }
+    // We only fetch all users if the current user is not a regular employee
+    const shouldFetchAllUsers = status === 'authenticated' && currentUserData && !isEmployee(currentUserData.role);
+    const { data: allUsersFromDB, isLoading: isAllUsersLoading, refetch: refetchAllUsers } = useQuery<User[]>(
+        '/api/users', { enabled: shouldFetchAllUsers }
     );
-
-    const users = useMemo(() => {
-        const userMap = new Map<string, User>();
-        if (currentUserData) {
-            userMap.set(currentUserData.id, currentUserData);
-        }
-        if (allUsersFromDB) {
-            allUsersFromDB.forEach(user => userMap.set(user.id, user));
-        }
-        return Array.from(userMap.values());
-    }, [allUsersFromDB, currentUserData]);
-
-    const { data: tasksData, isLoading: isTasksDataLoading } = useQuery<Task[]>(
-        '/api/tasks',
-        { enabled: status === 'authenticated' }
-    );
-    const allTasks = useMemo(() => tasksData || [], [tasksData]);
     
-    const { data: notificationsDataFromDB, isLoading: isNotifsLoading } = useQuery<Notification[]>(
-        '/api/notifications',
-        { enabled: status === 'authenticated' }
+    const { data: tasksData, isLoading: isTasksLoading, refetch: refetchTasks } = useQuery<Task[]>(
+        '/api/tasks', { enabled: status === 'authenticated' }
     );
+
+    const { data: notificationsData, isLoading: isNotifsLoading, refetch: refetchNotifications } = useQuery<Notification[]>(
+        '/api/notifications', { enabled: status === 'authenticated' }
+    );
+    
+    const [allTasks, setAllTasks] = useState<Task[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [notifications, setNotifications] = useState<Notification[]>([]);
+    const [downloadHistory, setDownloadHistory] = useState<DownloadItem[]>([]);
+
+    // Populate state from query hooks
+    useEffect(() => { if (tasksData) setAllTasks(tasksData) }, [tasksData]);
+    useEffect(() => { if (notificationsData) setNotifications(notificationsData) }, [notificationsData]);
 
     useEffect(() => {
-        if (notificationsDataFromDB) {
-            setNotifications(notificationsDataFromDB);
-        }
-    }, [notificationsDataFromDB]);
-
-    const [downloadHistory, setDownloadHistory] = useState<DownloadItem[]>([]);
+        const userMap = new Map<string, User>();
+        if (currentUserData) userMap.set(currentUserData.id, currentUserData);
+        if (allUsersFromDB) allUsersFromDB.forEach(user => userMap.set(user.id, user));
+        setUsers(Array.from(userMap.values()));
+    }, [currentUserData, allUsersFromDB]);
     
     useEffect(() => {
         if (currentUserData?.id) {
           try {
             const savedDownloads = localStorage.getItem(`kreatask_downloads_${currentUserData.id}`);
-            if (savedDownloads) {
-                setDownloadHistory(JSON.parse(savedDownloads));
-            } else {
-                setDownloadHistory([]);
-            }
-          } catch (error) {
-              console.error("Failed to load downloads from localStorage:", error);
-          }
+            setDownloadHistory(savedDownloads ? JSON.parse(savedDownloads) : []);
+          } catch (error) { console.error("Failed to load downloads:", error); }
         }
     }, [currentUserData?.id]);
 
@@ -146,27 +129,69 @@ export function TaskDataProvider({ children }: { children: ReactNode }) {
 
     const leaderboardData = useMemo(() => calculateLeaderboard(allTasks, users), [allTasks, users]);
     
-    // TODO: Implement API calls for mutations
-    const addTask = async (newTaskData: Partial<Task>) => { console.log("addTask not implemented"); };
-    const updateTask = async (taskId: string, updates: Partial<Task>) => { console.log("updateTask not implemented"); };
-    const deleteTask = async (taskId: string) => { console.log("deleteTask not implemented"); };
-    const updateUserInFirestore = async (userId: string, data: Partial<User>) => { console.log("updateUserInFirestore not implemented"); };
-    const deleteUser = async (userId: string) => { console.log("deleteUser not implemented"); };
-    const addNotification = async (newNotificationData: Partial<Notification>) => { console.log("addNotification not implemented"); };
-    const updateNotifications = async (notificationsToUpdate: Notification[]) => { console.log("updateNotifications not implemented"); };
-    const setAllTasks = (newTasks: Task[]) => { console.warn("setAllTasks is a no-op with a real backend."); };
-    const setUsers = (newUsers: User[]) => { console.warn("setUsers is a no-op with a real backend."); };
+    const mutation = async (url: string, method: string, body: any) => {
+        const response = await fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Mutation failed');
+        }
+        return response.json().catch(() => ({})); // Handle empty responses
+    };
+
+    const addTask = async (newTaskData: Partial<Task>) => {
+        await mutation('/api/tasks', 'POST', newTaskData);
+        refetchTasks();
+    };
+
+    const updateTask = async (taskId: string, updates: Partial<Task>) => {
+        // Optimistic update
+        setAllTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates } as Task : t));
+        try {
+            await mutation(`/api/tasks/${taskId}`, 'PATCH', updates);
+        } catch (e) {
+            console.error(e);
+            toast({ variant: 'destructive', title: "Update failed", description: "Could not save changes to the server."});
+            refetchTasks(); // Revert optimistic update on failure
+        }
+    };
+
+    const deleteTask = async (taskId: string) => {
+        setAllTasks(prev => prev.filter(t => t.id !== taskId));
+        await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+    };
+
+    const addNotification = async (newNotificationData: Partial<Notification>) => {
+        await mutation('/api/notifications', 'POST', newNotificationData);
+        refetchNotifications();
+    };
+    
+    const updateNotifications = async (notificationsToUpdate: {id: string, read: boolean}[]) => {
+        setNotifications(prev => prev.map(n => {
+            const update = notificationsToUpdate.find(u => u.id === n.id);
+            return update ? { ...n, read: update.read } : n;
+        }));
+        await mutation('/api/notifications', 'PATCH', notificationsToUpdate);
+    };
+
+    const updateUserInFirestore = async (userId: string, data: Partial<User>) => {
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...data } as User : u));
+        await mutation(`/api/users/${userId}`, 'PATCH', data);
+    };
+
+    const deleteUser = async (userId: string) => {
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+    };
 
     const addToDownloadHistory = useCallback((file: { name: string; size: string, url: string }, taskName: string, isRedownload = false) => {
       const newDownloadItem: DownloadItem = {
         id: Date.now(),
-        fileName: file.name,
-        taskName: taskName,
-        date: new Date().toISOString(),
-        size: file.size,
-        url: file.url,
-        status: 'In Progress',
-        progress: 0,
+        fileName: file.name, taskName, date: new Date().toISOString(), size: file.size, url: file.url,
+        status: 'In Progress', progress: 0,
       };
       
       setDownloadHistory(prevHistory => {
@@ -181,29 +206,14 @@ export function TaskDataProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const value: TaskDataContextType = useMemo(() => ({
-        isLoading: status === 'loading' || isCurrentUserLoading || isTasksDataLoading || isNotifsLoading,
-        allTasks,
-        users,
-        currentUserData,
-        leaderboardData,
-        notifications,
-        setNotifications,
-        updateNotifications,
-        downloadHistory,
-        setDownloadHistory,
-        addTask,
-        updateTask,
-        deleteTask,
-        addNotification,
-        updateUserInFirestore,
-        deleteUser,
-        addToDownloadHistory,
-        setAllTasks,
-        setUsers,
+        isLoading: status === 'loading' || isCurrentUserLoading || isTasksLoading || isNotifsLoading || isAllUsersLoading,
+        allTasks, setAllTasks, users, setUsers, currentUserData, leaderboardData, notifications, setNotifications,
+        downloadHistory, setDownloadHistory, addTask, updateTask, deleteTask, addNotification, updateNotifications,
+        updateUserInFirestore, deleteUser, addToDownloadHistory,
     }), [
-        status, isCurrentUserLoading, isTasksDataLoading, isNotifsLoading,
+        status, isCurrentUserLoading, isTasksLoading, isNotifsLoading, isAllUsersLoading,
         allTasks, users, currentUserData, leaderboardData, notifications, 
-        downloadHistory, addToDownloadHistory
+        downloadHistory, addToDownloadHistory, deleteTask, addNotification, updateNotifications, updateUserInFirestore, deleteUser, addTask, updateTask
     ]);
 
     return (

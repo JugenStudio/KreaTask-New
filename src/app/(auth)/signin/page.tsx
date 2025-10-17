@@ -71,7 +71,11 @@ export default function SignInPage() {
         description: result.error || "Email atau password salah.",
       });
     } else if (result?.ok) {
+      // On successful sign-in, NextAuth will handle redirection via middleware
+      // or you can manually push.
       router.push('/dashboard');
+    } else {
+        setIsLoading(false);
     }
   };
 
