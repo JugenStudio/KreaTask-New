@@ -7,7 +7,6 @@ import { StackProvider } from '@stackframe/stack';
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <StackProvider>
       <LanguageProvider>
         <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden">
           
@@ -25,6 +24,5 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </div>
         </div>
       </LanguageProvider>
-    </StackProvider>
   );
 }

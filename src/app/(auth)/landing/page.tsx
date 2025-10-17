@@ -52,10 +52,10 @@ export default function LandingPage() {
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-4 w-full max-w-xs">
           <Button asChild className="w-full sm:w-1/2 h-12 text-base transition-all active:scale-95 rounded-full" size="lg">
-            <Link href="/signin">{t('landing.login')}</Link>
+            <Link href={stack.urls.signIn}>{t('landing.login')}</Link>
           </Button>
           <Button asChild variant="outline" className="w-full sm:w-1/2 h-12 text-base transition-all active:scale-95 rounded-full" size="lg">
-            <Link href="/signup">{t('landing.register')}</Link>
+            <Link href={stack.urls.signUp}>{t('landing.register')}</Link>
           </Button>
         </div>
       </div>

@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { StackProvider, StackTheme } from '@stackframe/stack';
 import { stackServerApp } from '@/stack';
+import { LanguageProvider } from '@/providers/language-provider';
 
 export const metadata: Metadata = {
   title: 'KreaTask',
@@ -33,8 +34,10 @@ export default function RootLayout({
       >
         <StackProvider app={stackServerApp}>
           <StackTheme>
-            {children}
-            <Toaster />
+            <LanguageProvider>
+              {children}
+              <Toaster />
+            </LanguageProvider>
           </StackTheme>
         </StackProvider>
       </body>

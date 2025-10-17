@@ -2,7 +2,6 @@
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { Header } from "@/components/header";
-import { LanguageProvider } from "@/providers/language-provider";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { usePathname } from 'next/navigation';
@@ -61,11 +60,9 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <LanguageProvider>
       <TaskDataProvider>
         <AppLayoutContent>{children}</AppLayoutContent>
       </TaskDataProvider>
-    </LanguageProvider>
   );
 }
 
