@@ -1,105 +1,21 @@
+'use server';
 
-"use server";
+import { neon } from '@neondatabase/serverless';
 
-import { summarizeTaskComments } from "@/ai/flows/summarize-task-comments";
-import { askKreaBot } from "@/ai/flows/kreatask-bot-flow";
-import { translateContent } from "@/ai/flows/translate-content-flow";
-import { getTaskSuggestion } from "@/ai/flows/generate-tasks-flow";
-import { z } from "zod";
-import type { Task, User } from "@/lib/types";
-
-const SummarizeSchema = z.object({
-  commentThread: z.string(),
-});
-
-export async function getSummary(formData: FormData) {
-  try {
-    const validatedData = SummarizeSchema.parse({
-      commentThread: formData.get("commentThread"),
-    });
-
-    const companyPolicy = "Summaries should be concise, professional, and focus on decisions and action items. Avoid informal language.";
-
-    const result = await summarizeTaskComments({
-      commentThread: validatedData.commentThread,
-      companyPolicy,
-    });
-    
-    return { summary: result.summary, error: null };
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return { summary: null, error: "Invalid input." };
-    }
-    return { summary: null, error: "Failed to generate summary." };
+export async function getUserDetails(userId: string | undefined) {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is not set');
   }
-}
 
-const KreaBotSchema = z.object({
-  query: z.string(),
-  tasks: z.string(),
-  users: z.string(),
-});
-
-export async function getKreaBotResponse(
-  query: string,
-  tasks: Task[],
-  users: User[]
-) {
-  try {
-    const result = await askKreaBot({
-      query,
-      tasks,
-      users,
-    });
-    
-    return { response: result.response, error: null };
-  } catch (error) {
-    console.error("KreaBot action error:", error);
-    return { response: null, error: "Sorry, I encountered an error. Please try again." };
+  if (!userId) {
+    return null;
   }
-}
 
-// Define Zod schemas for validation
-const TranslateContentInputSchema = z.object({
-  text: z.string().describe('The text to be translated.'),
-});
-export type TranslateContentInput = z.infer<typeof TranslateContentInputSchema>;
-
-const TranslateContentOutputSchema = z.object({
-  en: z.string().describe('The English translation.'),
-  id: z.string().describe('The Indonesian translation.'),
-});
-export type TranslateContentOutput = z.infer<typeof TranslateContentOutputSchema>;
-
-
-export async function getTranslations(text: string): Promise<{ data: TranslateContentOutput | null, error: string | null }> {
-  try {
-    const validatedData = TranslateContentInputSchema.parse({ text });
-    const result = await translateContent(validatedData);
-    return { data: result, error: null };
-  } catch (error) {
-    console.error("Translation action error:", error);
-    if (error instanceof z.ZodError) {
-      return { data: null, error: "Invalid text provided for translation." };
-    }
-    return { data: null, error: "Sorry, I couldn't translate the content right now." };
-  }
-}
-
-// Re-added for AI Task Suggestion
-export async function getTaskFromAI(idea: string, users: User[]) {
-  if (!idea.trim()) {
-    return { suggestion: null, error: "Please provide an idea." };
-  }
-  try {
-    const result = await getTaskSuggestion({
-      idea,
-      users,
-    });
-    return { suggestion: result, error: null };
-  } catch (e: any) {
-    console.error("Error getting task from AI:", e);
-    // Return a generic error key to be translated on the client
-    return { suggestion: null, error: "submit.toast.ai_error_generic" };
-  }
+  // Note: The table is `users` as per your Prisma schema, not `neon_auth.users_sync`
+  const sql = neon(process.env.DATABASE_URL!);
+  const [user] = await sql`SELECT * FROM "User" WHERE id = ${userId};`;
+  
+  // The result from neon/serverless might need property name mapping if they are different
+  // e.g., mapping raw_json to avatarUrl if needed, but your table seems direct.
+  return user;
 }

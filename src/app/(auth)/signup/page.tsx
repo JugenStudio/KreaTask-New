@@ -75,7 +75,7 @@ export default function SignUpPage() {
         title: "Pendaftaran Berhasil",
         description: "Akun Anda telah dibuat. Silakan masuk.",
       });
-      router.push('/signin');
+      router.push(stack.urls.signIn);
     }
     
     setIsLoading(false);
@@ -87,7 +87,6 @@ export default function SignUpPage() {
     setIsGoogleLoading(false);
   }
 
-
   return (
     <div className="w-full max-w-sm mx-auto flex flex-col items-center">
         <div className={cn("w-full rounded-2xl bg-card/60 backdrop-blur-lg shadow-2xl border border-white/10 overflow-hidden")}>
@@ -95,10 +94,10 @@ export default function SignUpPage() {
                 <div className="p-8 space-y-6">
                     <div className="flex items-center justify-center bg-secondary/80 rounded-full p-1 max-w-fit mx-auto">
                          <Button variant="secondary" asChild className="rounded-full px-6 bg-primary text-primary-foreground shadow-md">
-                            <Link href="/signup">{t('signup.signup_button')}</Link>
+                            <Link href={stack.urls.signUp}>{t('signup.signup_button')}</Link>
                         </Button>
                         <Button variant="ghost" asChild className="rounded-full px-6 text-muted-foreground">
-                            <Link href="/signin">{t('signup.signin_button')}</Link>
+                            <Link href={stack.urls.signIn}>{t('signup.signin_button')}</Link>
                         </Button>
                     </div>
 

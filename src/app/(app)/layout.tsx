@@ -8,12 +8,11 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, createContext, useContext, ReactNode } from "react";
 import type { User } from "@/lib/types";
-import { Skeleton } from "@/components/ui/skeleton";
-import { BottomNav } from "@/components/bottom-nav";
-import { TaskDataProvider, useTaskData } from "@/hooks/use-task-data";
-import { useSpotlightEffect } from "@/hooks/use-spotlight";
-import { useUser, useAuth, StackProvider } from '@stackframe/stack';
 import { Loader2 } from "lucide-react";
+import { BottomNav } from "@/components/bottom-nav";
+import { TaskDataProvider } from "@/hooks/use-task-data";
+import { useSpotlightEffect } from "@/hooks/use-spotlight";
+import { useUser, useAuth } from '@stackframe/stack';
 
 const UserContext = createContext<{ currentUser: User | null }>({
   currentUser: null,
@@ -62,13 +61,11 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <StackProvider>
-      <LanguageProvider>
-        <TaskDataProvider>
-          <AppLayoutContent>{children}</AppLayoutContent>
-        </TaskDataProvider>
-      </LanguageProvider>
-    </StackProvider>
+    <LanguageProvider>
+      <TaskDataProvider>
+        <AppLayoutContent>{children}</AppLayoutContent>
+      </TaskDataProvider>
+    </LanguageProvider>
   );
 }
 

@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
+import { StackProvider, StackTheme } from '@stackframe/stack';
+import { stackServerApp } from '@/stack';
 
 export const metadata: Metadata = {
   title: 'KreaTask',
@@ -29,8 +31,12 @@ export default function RootLayout({
           'min-h-screen bg-background font-body antialiased',
         )}
       >
-        {children}
-        <Toaster />
+        <StackProvider app={stackServerApp}>
+          <StackTheme>
+            {children}
+            <Toaster />
+          </StackTheme>
+        </StackProvider>
       </body>
     </html>
   );

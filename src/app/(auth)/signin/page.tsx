@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useStack } from '@stackframe/stack';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,6 @@ const signinSchema = z.object({
 
 export default function SignInPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const stack = useStack();
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -32,17 +31,6 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
-  useEffect(() => {
-    const error = searchParams.get('error');
-    if (error) {
-      toast({
-        variant: "destructive",
-        title: "Login Gagal",
-        description: "Email atau password yang Anda masukkan salah. Silakan coba lagi.",
-      });
-    }
-  }, [searchParams, toast]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +48,7 @@ export default function SignInPage() {
     setIsLoading(true);
     setErrors({});
 
-    const result = await stack.signIn('credentials', {
+    const result = await stack.signIn('password', { // Use 'password' instead of 'credentials'
       email,
       password,
     });
@@ -80,8 +68,6 @@ export default function SignInPage() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true);
     await stack.signIn('google');
-    // The user will be redirected by Stack, so we don't need to do anything here.
-    // If there's an error, it will be handled on the callback page.
   }
 
   return (
@@ -90,10 +76,10 @@ export default function SignInPage() {
             <div className="p-8 space-y-6">
                 <div className="flex items-center justify-center bg-secondary/80 rounded-full p-1 max-w-fit mx-auto">
                     <Button variant="ghost" asChild className="rounded-full px-6 text-muted-foreground">
-                        <Link href="/signup">{t('signin.signup_button')}</Link>
+                        <Link href={stack.urls.signUp}>{t('signin.signup_button')}</Link>
                     </Button>
                     <Button variant="secondary" asChild className="rounded-full px-6 bg-primary text-primary-foreground shadow-md">
-                        <Link href="/signin">{t('signin.signin_button')}</Link>
+                        <Link href={stack.urls.signIn}>{t('signin.signin_button')}</Link>
                     </Button>
                 </div>
 
