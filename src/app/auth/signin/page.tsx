@@ -1,73 +1,91 @@
-{
-  "name": "nextn",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "prisma generate && NODE_ENV=production next build",
-    "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit",
-    "postinstall": "prisma generate && next build"
-  },
-  "dependencies": {
-    "@genkit-ai/google-genai": "^1.20.0",
-    "@genkit-ai/next": "^1.20.0",
-    "@hookform/resolvers": "^4.1.3",
-    "@prisma/client": "^5.17.0",
-    "@prisma/extension-accelerate": "^1.1.0",
-    "@radix-ui/react-accordion": "^1.2.3",
-    "@radix-ui/react-alert-dialog": "^1.1.6",
-    "@radix-ui/react-avatar": "^1.1.3",
-    "@radix-ui/react-checkbox": "^1.1.4",
-    "@radix-ui/react-collapsible": "^1.1.11",
-    "@radix-ui/react-dialog": "^1.1.6",
-    "@radix-ui/react-dropdown-menu": "^2.1.6",
-    "@radix-ui/react-label": "^2.1.2",
-    "@radix-ui/react-menubar": "^1.1.6",
-    "@radix-ui/react-popover": "^1.1.6",
-    "@radix-ui/react-progress": "^1.1.2",
-    "@radix-ui/react-radio-group": "^1.2.3",
-    "@radix-ui/react-scroll-area": "^1.2.3",
-    "@radix-ui/react-select": "^2.1.6",
-    "@radix-ui/react-separator": "^1.1.2",
-    "@radix-ui/react-slider": "^1.2.3",
-    "@radix-ui/react-slot": "^1.2.3",
-    "@radix-ui/react-switch": "^1.1.3",
-    "@radix-ui/react-tabs": "^1.1.3",
-    "@radix-ui/react-toast": "^1.2.6",
-    "@radix-ui/react-tooltip": "^1.1.8",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "date-fns": "^3.6.0",
-    "dotenv": "^16.5.0",
-    "embla-carousel-react": "^8.6.0",
-    "framer-motion": "^11.5.7",
-    "genkit": "^1.20.0",
-    "lucide-react": "^0.475.0",
-    "motion": "^10.18.0",
-    "next": "15.3.3",
-    "ogl": "^1.0.0-alpha.24",
-    "patch-package": "^8.0.0",
-    "react": "^18.3.1",
-    "react-beautiful-dnd": "^13.1.1",
-    "react-day-picker": "^8.10.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "^7.54.2",
-    "recharts": "^2.15.1",
-    "tailwind-merge": "^3.0.1",
-    "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.24.2"
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-beautiful-dnd": "^13.1.8",
-    "@types/react-dom": "^18",
-    "genkit-cli": "^1.20.0",
-    "postcss": "^8",
-    "prisma": "^5.17.0",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5"
+// This script reads the transformed JSON data and imports it into the PostgreSQL database using Prisma.
+// It should be run after the schema has been pushed to the database (`npx prisma db push`).
+
+const { PrismaClient } = require('@prisma/client');
+const fs = require('fs');
+const path = require('path');
+
+const prisma = new PrismaClient();
+const DATA_FILE = path.join(__dirname, '..', 'transformed-data.json');
+
+async function main() {
+  console.log('🚀 Starting data import process...');
+
+  try {
+    // 1. Read the transformed data file
+    if (!fs.existsSync(DATA_FILE)) {
+      console.error(`❌ Error: Transformed data file not found at ${DATA_FILE}`);
+      console.error('Please run the Phase 2 script (migrate-firestore-to-json.js) first.');
+      process.exit(1);
+    }
+    const rawData = fs.readFileSync(DATA_FILE, 'utf-8');
+    const { users, tasks, notifications, comments, revisions, files, subtasks } = JSON.parse(rawData);
+    console.log('✅ Successfully read transformed data file.');
+
+    // 2. Import Users
+    console.log(`\n🔄 Importing ${users.length} users...`);
+    const userResult = await prisma.user.createMany({
+      data: users,
+      skipDuplicates: true, // Prevent errors if a user already exists
+    });
+    console.log(`✅ Imported ${userResult.count} new users.`);
+
+    // 3. Import Tasks
+    console.log(`\n🔄 Importing ${tasks.length} tasks...`);
+    const taskResult = await prisma.task.createMany({
+      data: tasks,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${taskResult.count} new tasks.`);
+
+    // 4. Import Notifications
+    console.log(`\n🔄 Importing ${notifications.length} notifications...`);
+    const notificationResult = await prisma.notification.createMany({
+      data: notifications,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${notificationResult.count} new notifications.`);
+
+    // 5. Import Comments
+    console.log(`\n🔄 Importing ${comments.length} comments...`);
+    const commentResult = await prisma.comment.createMany({
+      data: comments,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${commentResult.count} new comments.`);
+
+    // 6. Import Revisions
+    console.log(`\n🔄 Importing ${revisions.length} revisions...`);
+    const revisionResult = await prisma.revision.createMany({
+      data: revisions,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${revisionResult.count} new revisions.`);
+
+    // 7. Import Files
+    console.log(`\n🔄 Importing ${files.length} files...`);
+    const fileResult = await prisma.file.createMany({
+      data: files,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${fileResult.count} new files.`);
+
+    // 8. Import Subtasks
+    console.log(`\n🔄 Importing ${subtasks.length} subtasks...`);
+    const subtaskResult = await prisma.subtask.createMany({
+      data: subtasks,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${subtaskResult.count} new subtasks.`);
+
+    console.log('\n\n🎉 Data import complete! Your PostgreSQL database is now populated.');
+
+  } catch (error) {
+    console.error('❌ A critical error occurred during the data import:', error);
+  } finally {
+    await prisma.$disconnect();
+    console.log('🔚 Prisma client disconnected.');
   }
 }
+
+main();

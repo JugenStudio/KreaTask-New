@@ -1,282 +1,91 @@
+// This script reads the transformed JSON data and imports it into the PostgreSQL database using Prisma.
+// It should be run after the schema has been pushed to the database (`npx prisma db push`).
 
+const { PrismaClient } = require('@prisma/client');
+const fs = require('fs');
+const path = require('path');
 
-'use client';
+const prisma = new PrismaClient();
+const DATA_FILE = path.join(__dirname, '..', 'transformed-data.json');
 
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { Input } from '@/components/ui/input';
-import { Mail, Lock, User as UserIcon, Loader2, Eye, EyeOff } from 'lucide-react';
-import { useState } from 'react';
-import { useAuth, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, updateProfile, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { useToast } from '@/hooks/use-toast';
-import { UserRole, type User } from '@/lib/types';
-import { cn } from '@/lib/utils';
-import { z } from 'zod';
-import { useLanguage } from '@/providers/language-provider';
+async function main() {
+  console.log('🚀 Starting data import process...');
 
-const signupSchema = z.object({
-    name: z.string().min(1, "Nama lengkap diperlukan"),
-    email: z.string().email("Format email tidak valid"),
-    password: z.string().min(6, "Password minimal 6 karakter"),
-    confirmPassword: z.string()
-}).refine(data => data.password === data.confirmPassword, {
-    message: "Password tidak cocok",
-    path: ["confirmPassword"],
-});
-
-export default function SignUpPage() {
-  const router = useRouter();
-  const auth = useAuth();
-  const firestore = useFirestore();
-  const { toast } = useToast();
-  const { t } = useLanguage();
-
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!auth || !firestore) {
-      setErrors({ form: "Layanan autentikasi atau database tidak tersedia." });
-      return;
+  try {
+    // 1. Read the transformed data file
+    if (!fs.existsSync(DATA_FILE)) {
+      console.error(`❌ Error: Transformed data file not found at ${DATA_FILE}`);
+      console.error('Please run the Phase 2 script (migrate-firestore-to-json.js) first.');
+      process.exit(1);
     }
+    const rawData = fs.readFileSync(DATA_FILE, 'utf-8');
+    const { users, tasks, notifications, comments, revisions, files, subtasks } = JSON.parse(rawData);
+    console.log('✅ Successfully read transformed data file.');
 
-    const validation = signupSchema.safeParse({ name, email, password, confirmPassword });
+    // 2. Import Users
+    console.log(`\n🔄 Importing ${users.length} users...`);
+    const userResult = await prisma.user.createMany({
+      data: users,
+      skipDuplicates: true, // Prevent errors if a user already exists
+    });
+    console.log(`✅ Imported ${userResult.count} new users.`);
 
-    if (!validation.success) {
-      const newErrors: Record<string, string> = {};
-      validation.error.errors.forEach(err => {
-        newErrors[err.path[0]] = err.message;
-      });
-      setErrors(newErrors);
-      return;
-    }
+    // 3. Import Tasks
+    console.log(`\n🔄 Importing ${tasks.length} tasks...`);
+    const taskResult = await prisma.task.createMany({
+      data: tasks,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${taskResult.count} new tasks.`);
 
-    setIsLoading(true);
-    setErrors({});
+    // 4. Import Notifications
+    console.log(`\n🔄 Importing ${notifications.length} notifications...`);
+    const notificationResult = await prisma.notification.createMany({
+      data: notifications,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${notificationResult.count} new notifications.`);
 
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const firebaseUser = userCredential.user;
+    // 5. Import Comments
+    console.log(`\n🔄 Importing ${comments.length} comments...`);
+    const commentResult = await prisma.comment.createMany({
+      data: comments,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${commentResult.count} new comments.`);
 
-      await updateProfile(firebaseUser, {
-        displayName: name,
-        photoURL: `https://picsum.photos/seed/${firebaseUser.uid}/100/100`,
-      });
+    // 6. Import Revisions
+    console.log(`\n🔄 Importing ${revisions.length} revisions...`);
+    const revisionResult = await prisma.revision.createMany({
+      data: revisions,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${revisionResult.count} new revisions.`);
 
-      const newUser: User = {
-        id: firebaseUser.uid,
-        name: name,
-        email: email,
-        avatarUrl: `https://picsum.photos/seed/${firebaseUser.uid}/100/100`,
-        role: UserRole.UNASSIGNED,
-        jabatan: 'Unassigned',
-      };
-      
-      const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-      await setDoc(userDocRef, newUser);
+    // 7. Import Files
+    console.log(`\n🔄 Importing ${files.length} files...`);
+    const fileResult = await prisma.file.createMany({
+      data: files,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${fileResult.count} new files.`);
 
-      toast({
-        title: "Pendaftaran Berhasil",
-        description: "Akun Anda telah dibuat. Selamat datang di KreaTask!",
-      });
+    // 8. Import Subtasks
+    console.log(`\n🔄 Importing ${subtasks.length} subtasks...`);
+    const subtaskResult = await prisma.subtask.createMany({
+      data: subtasks,
+      skipDuplicates: true,
+    });
+    console.log(`✅ Imported ${subtaskResult.count} new subtasks.`);
 
-      router.push('/dashboard');
+    console.log('\n\n🎉 Data import complete! Your PostgreSQL database is now populated.');
 
-    } catch (firebaseError: any) {
-      let errorMessage = "Gagal mendaftar. Silakan coba lagi.";
-      if (firebaseError.code === 'auth/email-already-in-use') {
-        errorMessage = 'Email ini sudah digunakan oleh akun lain.';
-      }
-      setErrors({ form: errorMessage });
-      toast({
-        variant: "destructive",
-        title: "Pendaftaran Gagal",
-        description: errorMessage,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    if (!auth || !firestore) return;
-    setIsGoogleLoading(true);
-    const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
-
-      if (!userDoc.exists()) {
-        const newUser: User = {
-          id: user.uid,
-          name: user.displayName || 'Google User',
-          email: user.email || '',
-          avatarUrl: user.photoURL || `https://picsum.photos/seed/${user.uid}/100/100`,
-          role: UserRole.UNASSIGNED,
-          jabatan: 'Unassigned',
-        };
-        await setDoc(userDocRef, newUser);
-      }
-      toast({
-        title: "Login Google Berhasil",
-        description: `Selamat datang, ${user.displayName}!`,
-      });
-      router.push('/dashboard');
-    } catch (error: any) {
-      console.error("Google sign-in error:", error);
-      let errorMessage = "Terjadi kesalahan saat mendaftar dengan Google.";
-      if (error.code === 'auth/popup-blocked') {
-        errorMessage = 'Popup login Google diblokir oleh browser. Harap izinkan popup untuk situs ini.';
-      } else if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Anda menutup jendela login Google sebelum selesai.';
-      }
-      toast({
-        variant: "destructive",
-        title: "Pendaftaran Google Gagal",
-        description: errorMessage,
-      });
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  };
-
-
-  return (
-    <div className="w-full max-w-sm mx-auto flex flex-col items-center">
-        <div className={cn("w-full rounded-2xl bg-card/60 backdrop-blur-lg shadow-2xl border border-white/10 overflow-hidden")}>
-             <form onSubmit={handleSignUp}>
-                <div className="p-8 space-y-6">
-                    <div className="flex items-center justify-center bg-secondary/80 rounded-full p-1 max-w-fit mx-auto">
-                         <Button variant="secondary" asChild className="rounded-full px-6 bg-primary text-primary-foreground shadow-md">
-                            <Link href="/signup">{t('signup.signup_button')}</Link>
-                        </Button>
-                        <Button variant="ghost" asChild className="rounded-full px-6 text-muted-foreground">
-                            <Link href="/signin">{t('signup.signin_button')}</Link>
-                        </Button>
-                    </div>
-
-                    <div className="text-center space-y-2">
-                        <h1 className="text-xl font-bold font-headline">{t('signup.title')}</h1>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="relative">
-                            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                            <Input
-                            type="text"
-                            placeholder={t('signup.name_placeholder')}
-                            className="pl-10 h-12 bg-background/30 border-white/10 placeholder:text-muted-foreground"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            required
-                            disabled={isLoading || isGoogleLoading}
-                            />
-                            {errors.name && <p className="text-xs text-destructive mt-1">{errors.name}</p>}
-                        </div>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                            <Input
-                            type="email"
-                            placeholder={t('signup.email_placeholder')}
-                            className="pl-10 h-12 bg-background/30 border-white/10 placeholder:text-muted-foreground"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            required
-                            disabled={isLoading || isGoogleLoading}
-                            />
-                            {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
-                        </div>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                            <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder={t('signup.password_placeholder')}
-                            className="pl-10 pr-10 h-12 bg-background/30 border-white/10 placeholder:text-muted-foreground"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            disabled={isLoading || isGoogleLoading}
-                            />
-                            <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
-                                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                            </Button>
-                            {errors.password && <p className="text-xs text-destructive mt-1">{errors.password}</p>}
-                        </div>
-                         <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
-                            <Input
-                            type={showConfirmPassword ? "text" : "password"}
-                            placeholder={t('signup.confirm_password_placeholder')}
-                            className="pl-10 pr-10 h-12 bg-background/30 border-white/10 placeholder:text-muted-foreground"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            required
-                            disabled={isLoading || isGoogleLoading}
-                            />
-                            <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
-                                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                            </Button>
-                            {errors.confirmPassword && <p className="text-xs text-destructive mt-1">{errors.confirmPassword}</p>}
-                        </div>
-
-                         {errors.form && <p className="text-sm text-center text-destructive">{errors.form}</p>}
-                        
-                        <Button
-                            type="submit"
-                            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-base"
-                            disabled={isLoading || isGoogleLoading}
-                        >
-                            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : t('signup.submit_button')}
-                        </Button>
-                    </div>
-                    
-                    <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-border/50" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-card px-2 text-muted-foreground">
-                            {t('signup.separator')}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full h-12 bg-background/50 border-white/20 hover:bg-background/80"
-                        onClick={handleGoogleSignIn}
-                        disabled={isLoading || isGoogleLoading}
-                    >
-                        {isGoogleLoading ? (
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    ) : (
-                        <Image src="/google.svg" width={24} height={24} alt="Google logo" className="mr-2" />
-                    )}
-                    {t('signup.google_button')}
-                </Button>
-                    <p className="text-center text-xs text-muted-foreground !mt-8">
-                        {t('signup.terms')}
-                    </p>
-                </div>
-            </form>
-        </div>
-    </div>
-  );
+  } catch (error) {
+    console.error('❌ A critical error occurred during the data import:', error);
+  } finally {
+    await prisma.$disconnect();
+    console.log('🔚 Prisma client disconnected.');
+  }
 }
+
+main();

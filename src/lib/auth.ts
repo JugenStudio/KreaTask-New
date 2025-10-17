@@ -1,28 +1,19 @@
-import type { NextAuthOptions, User as NextAuthUser } from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
+import NextAuth from 'next-auth';
+import Credentials from 'next-auth/providers/credentials';
+import { PrismaAdapter } from '@auth/prisma-adapter';
 import { PrismaClient } from '@prisma/client';
-import { PrismaAdapter } from '@next-auth/prisma-adapter';
+import type { NextAuthConfig } from 'next-auth';
 
-// You must declare the prisma client instance outside of the request handler
-// https://www.prisma.io/docs/orm/more/help-and-troubleshooting/help-articles/nextjs-prisma-client-dev-practices
-declare global {
-  var prisma: PrismaClient | undefined;
-}
+const prisma = new PrismaClient();
 
-const prisma = global.prisma || new PrismaClient();
-
-if (process.env.NODE_ENV === 'development') {
-  global.prisma = prisma;
-}
-
-export const authOptions: NextAuthOptions = {
+export const config = {
   adapter: PrismaAdapter(prisma),
   providers: [
-    CredentialsProvider({
+    Credentials({
       name: 'Credentials',
       credentials: {
-        email: { label: "Email", type: "text" },
-        password: { label: "Password", type: "password" }
+        email: { label: 'Email', type: 'text' },
+        password: { label: 'Password', type: 'password' },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials.password) {
@@ -30,7 +21,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: credentials.email as string },
         });
 
         if (!user) {
@@ -38,39 +29,54 @@ export const authOptions: NextAuthOptions = {
         }
         
         // IMPORTANT: In a real app, you MUST hash passwords.
-        // For this migration, we are comparing plain text as a temporary step.
         const isPasswordValid = credentials.password === user.password;
 
         if (!isPasswordValid) {
           return null;
         }
         
-        // The object returned here will be embedded in the JWT.
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
         };
-      }
-    })
+      },
+    }),
   ],
-  session: {
-    strategy: 'jwt',
-  },
   callbacks: {
-    async jwt({ token, user }) {
-      // The `user` object is only available on the first sign-in.
-      // We are adding the user's role to the token here.
+    authorized({ auth, request: { nextUrl } }) {
+      const isLoggedIn = !!auth?.user;
+      const paths = [
+        '/dashboard', 
+        '/tasks', 
+        '/submit', 
+        '/leaderboard', 
+        '/performance-report', 
+        '/profile', 
+        '/settings', 
+        '/about', 
+        '/downloads'
+      ];
+      const isProtected = paths.some(path => nextUrl.pathname.startsWith(path));
+
+      if (isProtected && !isLoggedIn) {
+        const redirectUrl = new URL('/landing', nextUrl.origin);
+        redirectUrl.searchParams.append('callbackUrl', nextUrl.pathname);
+        return Response.redirect(redirectUrl);
+      }
+      return true;
+    },
+    jwt({ token, user }) {
       if (user) {
+        token.id = user.id;
         token.role = (user as any).role;
       }
       return token;
     },
-    async session({ session, token }) {
-      // We are adding the user's ID and role to the session object.
+    session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.sub;
+        session.user.id = token.id as string;
         (session.user as any).role = token.role;
       }
       return session;
@@ -79,5 +85,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: '/signin',
   },
-  secret: process.env.NEXTAUTH_SECRET,
-};
+  secret: process.env.AUTH_SECRET, // Changed from NEXTAUTH_SECRET to AUTH_SECRET for v5
+} satisfies NextAuthConfig;
+
+export const { handlers, auth, signIn, signOut } = NextAuth(config);

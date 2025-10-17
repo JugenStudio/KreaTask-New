@@ -56,7 +56,7 @@ async function main() {
     console.log(`✅ Imported ${commentResult.count} new comments.`);
 
     // 6. Import Revisions
-    consolelog(`\n🔄 Importing ${revisions.length} revisions...`);
+    console.log(`\n🔄 Importing ${revisions.length} revisions...`);
     const revisionResult = await prisma.revision.createMany({
       data: revisions,
       skipDuplicates: true,

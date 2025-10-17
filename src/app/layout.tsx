@@ -32,10 +32,8 @@ export default function RootLayout({
         )}
       >
         <AuthProvider>
-          <LanguageProvider>
             {children}
             <Toaster />
-          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

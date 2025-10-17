@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Image from 'next/image';
 import { Input } from '@/components/ui/input';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useState, useEffect } from 'react';
@@ -57,25 +56,32 @@ export default function SignInPage() {
     setIsLoading(true);
     setErrors({});
 
-    const result = await signIn('credentials', {
-      redirect: false,
-      email,
-      password,
-    });
-
-    if (result?.error) {
-      setIsLoading(false);
-      toast({
-        variant: "destructive",
-        title: "Login Gagal",
-        description: result.error || "Email atau password salah.",
+    try {
+      const result = await signIn('credentials', {
+        redirect: false,
+        email,
+        password,
+        callbackUrl: '/dashboard',
       });
-    } else if (result?.ok) {
-      // On successful sign-in, NextAuth will handle redirection via middleware
-      // or you can manually push.
+
+      if (result?.error) {
+        throw new Error(result.error);
+      }
+      // On success, NextAuth middleware will handle redirection
       router.push('/dashboard');
-    } else {
+
+    } catch (error: any) {
         setIsLoading(false);
+        let errorMessage = "Email atau password salah.";
+        // NextAuth v5 throws specific errors
+        if (error.message.includes('CredentialsSignin')) {
+           errorMessage = "Email atau password yang Anda masukkan salah.";
+        }
+        toast({
+            variant: "destructive",
+            title: "Login Gagal",
+            description: errorMessage,
+        });
     }
   };
 

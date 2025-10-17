@@ -37,7 +37,7 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   
   const isLoading = status === 'loading' || isTaskDataLoading;
 
-  if (isLoading) {
+  if (isLoading || !currentUser) {
     return (
         <div className="flex items-center justify-center min-h-screen w-full bg-background">
            <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -64,15 +64,12 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  // The structure is simplified as Firebase providers are no longer needed.
   return (
-    <AuthProvider>
-        <LanguageProvider>
-          <TaskDataProvider>
-            <AppLayoutContent>{children}</AppLayoutContent>
-          </TaskDataProvider>
-        </LanguageProvider>
-    </AuthProvider>
+      <LanguageProvider>
+        <TaskDataProvider>
+          <AppLayoutContent>{children}</AppLayoutContent>
+        </TaskDataProvider>
+      </LanguageProvider>
   );
 }
 
