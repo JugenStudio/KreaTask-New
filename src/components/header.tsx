@@ -1,7 +1,6 @@
+'use client';
 
-"use client";
-
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -34,23 +33,20 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/providers/language-provider";
 import { Badge } from "@/components/ui/badge";
-import type { User } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { NotificationCenter } from "@/components/notifications/notification-center";
 import { useCurrentUser } from "@/app/(app)/layout";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useAuth } from "@/firebase";
-import { signOut } from "firebase/auth";
+import { signOut } from "next-auth/react";
 
 export function Header() {
   const { currentUser } = useCurrentUser();
-  const { locale, t, setLocale } = useLanguage();
+  const { t } = useLanguage();
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const isMobile = useIsMobile();
-  const auth = useAuth();
   const [isLogoutAlertOpen, setIsLogoutAlertOpen] = useState(false);
 
   const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
@@ -63,12 +59,7 @@ export function Header() {
   };
 
   const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      router.push('/'); // Redirect to landing page
-    } catch (error) {
-      console.error("Error signing out: ", error);
-    }
+    await signOut({ callbackUrl: '/landing' });
   };
 
   if (!currentUser) {
@@ -115,7 +106,7 @@ export function Header() {
               <Button variant="ghost" size="icon" className="rounded-full">
                 <Avatar className="h-8 w-8">
                   <AvatarImage
-                    src={currentUser.avatarUrl}
+                    src={currentUser.avatarUrl ?? undefined}
                     alt={currentUser.name}
                   />
                   <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>

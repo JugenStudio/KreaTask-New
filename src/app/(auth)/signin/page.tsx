@@ -1,73 +1,142 @@
-{
-  "name": "nextn",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "prisma generate && NODE_ENV=production next build",
-    "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit",
-    "postinstall": "prisma generate && next build"
-  },
-  "dependencies": {
-    "@genkit-ai/google-genai": "^1.20.0",
-    "@genkit-ai/next": "^1.20.0",
-    "@hookform/resolvers": "^4.1.3",
-    "@prisma/client": "^5.17.0",
-    "@prisma/extension-accelerate": "^1.1.0",
-    "@radix-ui/react-accordion": "^1.2.3",
-    "@radix-ui/react-alert-dialog": "^1.1.6",
-    "@radix-ui/react-avatar": "^1.1.3",
-    "@radix-ui/react-checkbox": "^1.1.4",
-    "@radix-ui/react-collapsible": "^1.1.11",
-    "@radix-ui/react-dialog": "^1.1.6",
-    "@radix-ui/react-dropdown-menu": "^2.1.6",
-    "@radix-ui/react-label": "^2.1.2",
-    "@radix-ui/react-menubar": "^1.1.6",
-    "@radix-ui/react-popover": "^1.1.6",
-    "@radix-ui/react-progress": "^1.1.2",
-    "@radix-ui/react-radio-group": "^1.2.3",
-    "@radix-ui/react-scroll-area": "^1.2.3",
-    "@radix-ui/react-select": "^2.1.6",
-    "@radix-ui/react-separator": "^1.1.2",
-    "@radix-ui/react-slider": "^1.2.3",
-    "@radix-ui/react-slot": "^1.2.3",
-    "@radix-ui/react-switch": "^1.1.3",
-    "@radix-ui/react-tabs": "^1.1.3",
-    "@radix-ui/react-toast": "^1.2.6",
-    "@radix-ui/react-tooltip": "^1.1.8",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "date-fns": "^3.6.0",
-    "dotenv": "^16.5.0",
-    "embla-carousel-react": "^8.6.0",
-    "framer-motion": "^11.5.7",
-    "genkit": "^1.20.0",
-    "lucide-react": "^0.475.0",
-    "motion": "^10.18.0",
-    "next": "15.3.3",
-    "ogl": "^1.0.0-alpha.24",
-    "patch-package": "^8.0.0",
-    "react": "^18.3.1",
-    "react-beautiful-dnd": "^13.1.1",
-    "react-day-picker": "^8.10.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "^7.54.2",
-    "recharts": "^2.15.1",
-    "tailwind-merge": "^3.0.1",
-    "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.24.2"
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-beautiful-dnd": "^13.1.8",
-    "@types/react-dom": "^18",
-    "genkit-cli": "^1.20.0",
-    "postcss": "^8",
-    "prisma": "^5.17.0",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5"
-  }
+'use client';
+
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
+import { Input } from '@/components/ui/input';
+import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { signIn } from 'next-auth/react';
+import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+import { z } from 'zod';
+import { useLanguage } from '@/providers/language-provider';
+
+const signinSchema = z.object({
+  email: z.string().email("Format email tidak valid"),
+  password: z.string().min(1, "Password diperlukan"),
+});
+
+export default function SignInPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { toast } = useToast();
+  const { t } = useLanguage();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  useEffect(() => {
+    const error = searchParams.get('error');
+    if (error) {
+      toast({
+        variant: "destructive",
+        title: "Login Gagal",
+        description: "Email atau password yang Anda masukkan salah. Silakan coba lagi.",
+      });
+    }
+  }, [searchParams, toast]);
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const validation = signinSchema.safeParse({ email, password });
+
+    if (!validation.success) {
+      const newErrors: Record<string, string> = {};
+      validation.error.errors.forEach(err => {
+        newErrors[err.path[0]] = err.message;
+      });
+      setErrors(newErrors);
+      return;
+    }
+
+    setIsLoading(true);
+    setErrors({});
+
+    const result = await signIn('credentials', {
+      redirect: false,
+      email,
+      password,
+    });
+
+    if (result?.error) {
+      setIsLoading(false);
+      toast({
+        variant: "destructive",
+        title: "Login Gagal",
+        description: result.error || "Email atau password salah.",
+      });
+    } else if (result?.ok) {
+      router.push('/dashboard');
+    }
+  };
+
+  return (
+     <div className="w-full max-w-sm mx-auto flex flex-col items-center">
+        <div className={cn("w-full rounded-2xl bg-card/60 backdrop-blur-lg shadow-2xl border border-white/10 overflow-hidden")}>
+             <form onSubmit={handleSignIn}>
+                <div className="p-8 space-y-6">
+                    <div className="flex items-center justify-center bg-secondary/80 rounded-full p-1 max-w-fit mx-auto">
+                        <Button variant="ghost" asChild className="rounded-full px-6 text-muted-foreground">
+                            <Link href="/signup">{t('signin.signup_button')}</Link>
+                        </Button>
+                        <Button variant="secondary" asChild className="rounded-full px-6 bg-primary text-primary-foreground shadow-md">
+                            <Link href="/signin">{t('signin.signin_button')}</Link>
+                        </Button>
+                    </div>
+
+                    <div className="text-center space-y-2">
+                        <h1 className="text-xl font-bold font-headline">{t('signin.title')}</h1>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="relative">
+                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                            <Input
+                            type="email"
+                            placeholder={t('signin.email_placeholder')}
+                            className="pl-10 h-12 bg-background/30 border-white/10 placeholder:text-muted-foreground"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            required
+                            disabled={isLoading}
+                            />
+                             {errors.email && <p className="text-xs text-destructive mt-1">{errors.email}</p>}
+                        </div>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-5 h-5" />
+                            <Input
+                            type={showPassword ? "text" : "password"}
+                            placeholder={t('signin.password_placeholder')}
+                            className="pl-10 pr-10 h-12 bg-background/30 border-white/10 placeholder:text-muted-foreground"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            required
+                            disabled={isLoading}
+                            />
+                            <Button type="button" variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => setShowPassword(!showPassword)}>
+                                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                            </Button>
+                             {errors.password && <p className="text-xs text-destructive mt-1">{errors.password}</p>}
+                        </div>
+
+                         {errors.form && <p className="text-sm text-center text-destructive">{errors.form}</p>}
+                        
+                        <Button
+                            type="submit"
+                            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-lg text-base"
+                            disabled={isLoading}
+                        >
+                            {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : t('signin.submit_button')}
+                        </Button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+  );
 }

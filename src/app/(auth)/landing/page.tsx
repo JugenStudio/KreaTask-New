@@ -7,26 +7,25 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import BlurText from '@/components/ui/blur-text';
 import { useEffect } from 'react';
-import { useUser } from '@/firebase';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
 
 export default function LandingPage() {
   const { t } = useLanguage();
-  const { user, isUserLoading } = useUser();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    // If user is loaded and exists, redirect to dashboard
-    if (!isUserLoading && user) {
+    if (status === 'authenticated') {
       router.replace('/dashboard');
     }
-  }, [user, isUserLoading, router]);
+  }, [status, router]);
 
-  // While loading, we can show a blank page or a spinner
-  if (isUserLoading || user) {
+  if (status === 'loading' || status === 'authenticated') {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-            {/* Loading or redirecting... */}
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     );
   }

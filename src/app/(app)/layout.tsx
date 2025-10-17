@@ -1,5 +1,4 @@
-
-"use client";
+'use client';
 
 import { AppSidebar } from "@/components/app-sidebar";
 import { Header } from "@/components/header";
@@ -9,14 +8,14 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, createContext, useContext, ReactNode } from "react";
 import type { User } from "@/lib/types";
-import { UserRole } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BottomNav } from "@/components/bottom-nav";
-import { TaskDataProvider, useTaskData } from "@/hooks/use-task-data.tsx";
+import { TaskDataProvider, useTaskData } from "@/hooks/use-task-data";
 import { useSpotlightEffect } from "@/hooks/use-spotlight";
-import { FirebaseClientProvider } from "@/firebase/client-provider";
+import { useSession } from "next-auth/react";
+import { Loader2 } from "lucide-react";
 
-// 1. Create the context
+// The context now holds the full User object from our database
 const UserContext = createContext<{ currentUser: User | null }>({
   currentUser: null,
 });
@@ -28,40 +27,19 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
   useSpotlightEffect();
   
   const currentUser = currentUserData;
+  const { status } = useSession();
 
 
   if (pathname.startsWith('/signin') || pathname.startsWith('/signup')) {
       return <>{children}</>
   }
   
-  // The main loading state now only depends on the user loading process
-  const isLoading = isTaskDataLoading;
+  const isLoading = status === 'loading' || isTaskDataLoading;
 
   if (isLoading) {
     return (
-        <div className="flex min-h-screen w-full bg-background">
-           {!isMobile && (
-             <div className="w-64 flex-col border-r border-border bg-card p-4">
-                <Skeleton className="h-10 w-3/4 mb-12" />
-                <div className="space-y-4">
-                  <Skeleton className="h-10 w-full rounded-full" />
-                  <Skeleton className="h-10 w-full rounded-full" />
-                  <Skeleton className="h-10 w-full rounded-full" />
-                  <Skeleton className="h-10 w-full rounded-full" />
-                </div>
-             </div>
-           )}
-          <div className="flex flex-1 flex-col">
-            <header className="sticky top-0 z-40 flex h-16 w-full items-center gap-4 border-b border-border bg-background/80 px-4 md:px-6 backdrop-blur-lg">
-                <div className="flex-1">
-                    <Skeleton className="h-8 w-48" />
-                </div>
-                <Skeleton className="h-8 w-8 rounded-full" />
-            </header>
-            <main className="flex-1 p-4 md:p-6 lg:p-8">
-              <Skeleton className="h-[500px] w-full" />
-            </main>
-          </div>
+        <div className="flex items-center justify-center min-h-screen w-full bg-background">
+           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
     )
   }
@@ -86,22 +64,18 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  if (pathname.startsWith('/signin') || pathname.startsWith('/signup')) {
-    return <LanguageProvider>{children}</LanguageProvider>;
-  }
+  // We no longer need a separate Firebase provider
   
   return (
-    <FirebaseClientProvider>
-      <LanguageProvider>
-        <TaskDataProvider>
-          <AppLayoutContent>{children}</AppLayoutContent>
-        </TaskDataProvider>
-      </LanguageProvider>
-    </FirebaseClientProvider>
+    <LanguageProvider>
+      <TaskDataProvider>
+        <AppLayoutContent>{children}</AppLayoutContent>
+      </TaskDataProvider>
+    </LanguageProvider>
   );
 }
 
-// 2. Create a custom hook to use the context
+// Custom hook to use the UserContext
 export const useCurrentUser = () => {
   const context = useContext(UserContext);
   if (context === undefined) {

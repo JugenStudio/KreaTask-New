@@ -1,73 +1,30 @@
-{
-  "name": "nextn",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "prisma generate && NODE_ENV=production next build",
-    "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit",
-    "postinstall": "prisma generate && next build"
-  },
-  "dependencies": {
-    "@genkit-ai/google-genai": "^1.20.0",
-    "@genkit-ai/next": "^1.20.0",
-    "@hookform/resolvers": "^4.1.3",
-    "@prisma/client": "^5.17.0",
-    "@prisma/extension-accelerate": "^1.1.0",
-    "@radix-ui/react-accordion": "^1.2.3",
-    "@radix-ui/react-alert-dialog": "^1.1.6",
-    "@radix-ui/react-avatar": "^1.1.3",
-    "@radix-ui/react-checkbox": "^1.1.4",
-    "@radix-ui/react-collapsible": "^1.1.11",
-    "@radix-ui/react-dialog": "^1.1.6",
-    "@radix-ui/react-dropdown-menu": "^2.1.6",
-    "@radix-ui/react-label": "^2.1.2",
-    "@radix-ui/react-menubar": "^1.1.6",
-    "@radix-ui/react-popover": "^1.1.6",
-    "@radix-ui/react-progress": "^1.1.2",
-    "@radix-ui/react-radio-group": "^1.2.3",
-    "@radix-ui/react-scroll-area": "^1.2.3",
-    "@radix-ui/react-select": "^2.1.6",
-    "@radix-ui/react-separator": "^1.1.2",
-    "@radix-ui/react-slider": "^1.2.3",
-    "@radix-ui/react-slot": "^1.2.3",
-    "@radix-ui/react-switch": "^1.1.3",
-    "@radix-ui/react-tabs": "^1.1.3",
-    "@radix-ui/react-toast": "^1.2.6",
-    "@radix-ui/react-tooltip": "^1.1.8",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "date-fns": "^3.6.0",
-    "dotenv": "^16.5.0",
-    "embla-carousel-react": "^8.6.0",
-    "framer-motion": "^11.5.7",
-    "genkit": "^1.20.0",
-    "lucide-react": "^0.475.0",
-    "motion": "^10.18.0",
-    "next": "15.3.3",
-    "ogl": "^1.0.0-alpha.24",
-    "patch-package": "^8.0.0",
-    "react": "^18.3.1",
-    "react-beautiful-dnd": "^13.1.1",
-    "react-day-picker": "^8.10.1",
-    "react-dom": "^18.3.1",
-    "react-hook-form": "^7.54.2",
-    "recharts": "^2.15.1",
-    "tailwind-merge": "^3.0.1",
-    "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.24.2"
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^18",
-    "@types/react-beautiful-dnd": "^13.1.8",
-    "@types/react-dom": "^18",
-    "genkit-cli": "^1.20.0",
-    "postcss": "^8",
-    "prisma": "^5.17.0",
-    "tailwindcss": "^3.4.1",
-    "typescript": "^5"
-  }
+import { ReactNode } from 'react';
+import Link from 'next/link';
+import { LanguageProvider } from '@/providers/language-provider';
+import { AuthProvider } from '@/providers/auth-provider';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
+
+export default function AuthLayout({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider>
+      <LanguageProvider>
+        <div className="min-h-screen w-full flex items-center justify-center bg-background p-4 relative overflow-hidden">
+          
+          <div className="absolute top-4 left-4 z-20">
+            <Button variant="ghost" size="icon" asChild className="rounded-full bg-black/20 hover:bg-black/40 text-muted-foreground hover:text-foreground">
+                <Link href="/landing">
+                    <ArrowLeft className="h-5 w-5" />
+                    <span className="sr-only">Kembali ke Landing Page</span>
+                </Link>
+            </Button>
+          </div>
+
+          <div className="relative z-10 w-full">
+              {children}
+          </div>
+        </div>
+      </LanguageProvider>
+    </AuthProvider>
+  );
 }
