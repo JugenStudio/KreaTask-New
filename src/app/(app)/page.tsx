@@ -2,22 +2,22 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@stackframe/stack';
+import { useStack } from '@stackframe/stack';
 import { Loader2 } from 'lucide-react';
 
 export default function WelcomePage() {
   const router = useRouter();
-  const auth = useAuth();
+  const stack = useStack();
 
   useEffect(() => {
-    if (auth.loading) return; 
+    if (stack.loading) return; 
 
-    if (auth.authenticated) {
+    if (stack.authenticated) {
       router.replace('/dashboard');
     } else {
       router.replace('/landing');
     }
-  }, [auth.authenticated, auth.loading, router]);
+  }, [stack.authenticated, stack.loading, router]);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background">

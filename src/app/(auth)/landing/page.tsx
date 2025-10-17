@@ -7,22 +7,22 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import BlurText from '@/components/ui/blur-text';
 import { useEffect } from 'react';
-import { useAuth } from '@stackframe/stack';
+import { useStack } from '@stackframe/stack';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 export default function LandingPage() {
   const { t } = useLanguage();
-  const auth = useAuth();
+  const stack = useStack();
   const router = useRouter();
 
   useEffect(() => {
-    if (auth.authenticated) {
+    if (stack.authenticated) {
       router.replace('/dashboard');
     }
-  }, [auth.authenticated, router]);
+  }, [stack.authenticated, router]);
 
-  if (auth.loading || auth.authenticated) {
+  if (stack.loading || stack.authenticated) {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-background">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
