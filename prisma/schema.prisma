@@ -2,162 +2,136 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DATABASE_DIRECT_URL")
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
 }
 
-// Models based on the previous Firestore structure
-
-// KreaTask User Model
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  avatarUrl String?
-  role      UserRole @default(UNASSIGNED)
-  jabatan   String?
-
-  tasksAssigned Task[]
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  password      String // In a real app, this should be a hash
+  avatarUrl     String?
+  role          UserRole       @default(UNASSIGNED)
+  jabatan       String         @default("Unassigned")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  tasks         Task[]         @relation("TaskToUser")
   revisions     Revision[]
   comments      Comment[]
   notifications Notification[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("users")
 }
 
-// Task Model
 model Task {
-  id            String   @id @default(cuid())
-  titleEn       String
-  titleId       String
-  descriptionEn String?
-  descriptionId String?
-  status        TaskStatus @default(TODO)
-  category      TaskCategory
-  value         Int
-  valueCategory ValueCategory
-  evaluator     Evaluator
-  approvedBy    String? // Name of the approver, not a direct relation
+  id              String        @id
+  titleEn         String
+  titleId         String
+  descriptionEn   String        @db.Text
+  descriptionId   String        @db.Text
+  status          String
+  category        TaskCategory
+  dueDate         DateTime
+  value           Int
+  valueCategory   ValueCategory
+  evaluator       Evaluator
+  approvedBy      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  assigneeId      String?
+  assignees       User[]        @relation("TaskToUser")
+  revisions       Revision[]
+  comments        Comment[]
+  files           File[]
+  subtasks        Subtask[]
+  notifications   Notification[]
 
-  assignees   User[]
-  dueDate     DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  subtasks  Subtask[]
-  files     File[]
-  comments  Comment[]
-  revisions Revision[]
-
-  @@map("tasks")
+  @@index([assigneeId])
+  @@index([status])
+  @@index([dueDate])
 }
 
-// Subtask Model (related to Task)
-model Subtask {
-  id          String  @id @default(cuid())
-  title       String
-  isCompleted Boolean @default(false)
-
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId String
-
-  @@index([taskId])
-  @@map("subtasks")
-}
-
-// File Model (related to Task)
-model File {
-  id   String @id @default(cuid())
-  name String
-  type String // 'video', 'image', 'illustration', 'document'
-  url  String @db.Text
-  size String
-  note String?
-
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId String
-
-  @@index([taskId])
-  @@map("files")
-}
-
-// Comment Model (related to Task)
-model Comment {
-  id        String   @id @default(cuid())
-  contentEn String   @db.Text
-  contentId String   @db.Text
-  isPinned  Boolean  @default(false)
-  timestamp DateTime @default(now())
-
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId String
-
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId String
-
-  @@index([authorId])
-  @@index([taskId])
-  @@map("comments")
-}
-
-// Revision History Model (related to Task)
-model Revision {
-  id        String   @id @default(cuid())
-  changeEn  String
-  changeId  String
-  timestamp DateTime @default(now())
-
-  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  authorId String
-
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  taskId String
-
-  @@index([authorId])
-  @@index([taskId])
-  @@map("revisions")
-}
-
-// Notification Model
 model Notification {
-  id        String           @id @default(cuid())
+  id        String   @id
   message   String
-  type      NotificationType
-  read      Boolean          @default(false)
+  type      String
+  read      Boolean  @default(false)
   link      String?
-  taskId    String?          // Not a hard relation, just for reference
-  createdAt DateTime         @default(now())
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId    String?
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([userId])
-  @@map("notifications")
 }
 
-// Enums
+model Comment {
+  id         String   @id
+  contentEn  String   @db.Text
+  contentId  String   @db.Text
+  isPinned   Boolean  @default(false)
+  timestamp  DateTime @default(now())
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  taskId     String
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([authorId])
+}
+
+model Revision {
+  id        String   @id
+  changeEn  String   @db.Text
+  changeId  String   @db.Text
+  timestamp DateTime @default(now())
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model File {
+  id     String  @id
+  name   String
+  type   String
+  url    String  @db.Text
+  size   String
+  note   String? @db.Text
+  taskId String
+  task   Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model Subtask {
+  id          String  @id
+  title       String
+  isCompleted Boolean @default(false)
+  taskId      String
+  task        Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
 
 enum UserRole {
-  ADMIN
-  DIREKTUR_UTAMA
-  DIREKTUR_OPERASIONAL
+  roles_super_admin
+  roles_admin
+  roles_team_leader
+  roles_team_member
+  UNASSIGNED
   JURNALIS
   SOCIAL_MEDIA_OFFICER
   DESAIN_GRAFIS
   MARKETING
   FINANCE
-  UNASSIGNED
-
-  @@map("UserRole")
 }
 
 enum TaskCategory {
@@ -165,18 +139,6 @@ enum TaskCategory {
   Medium
   High
   Critical
-
-  @@map("TaskCategory")
-}
-
-enum TaskStatus {
-  TODO
-  IN_PROGRESS
-  IN_REVIEW
-  COMPLETED
-  BLOCKED
-
-  @@map("TaskStatus")
 }
 
 enum ValueCategory {
@@ -184,28 +146,11 @@ enum ValueCategory {
   Menengah
   Tinggi
   Kritis
-
-  @@map("ValueCategory")
 }
 
 enum Evaluator {
   AI
-  DirekturOperasional
-  DirekturBisnis
-  DirekturUtama
-
-  @@map("Evaluator")
-}
-
-enum NotificationType {
-  TASK_ASSIGN
-  TASK_REVIEW
-  TASK_APPROVED
-  AI_SUGGESTION
-  VALIDATION_REQUEST
-  PERFORMANCE_ALERT
-  SYSTEM_UPDATE
-  SECURITY_ALERT
-
-  @@map("NotificationType")
+  Direktur_Operasional
+  Direktur_Bisnis
+  Direktur_Utama
 }

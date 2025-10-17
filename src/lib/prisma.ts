@@ -9,7 +9,11 @@ declare global {
 }
 
 const prismaClientSingleton = () => {
-  return new PrismaClient().$extends(withAccelerate());
+  return new PrismaClient().$extends(withAccelerate({
+    cacheStrategy: {
+      ttl: 60, // Cache query results for 60 seconds
+    },
+  }));
 };
 
 export const prisma = globalThis.prisma ?? prismaClientSingleton();
