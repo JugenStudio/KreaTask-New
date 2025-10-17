@@ -1,4 +1,7 @@
-import { auth } from '@/lib/auth'; // Import only the edge-safe auth helper
+import NextAuth from 'next-auth';
+import { config } from '@/lib/auth';
+
+const { auth } = NextAuth(config);
 
 // The `auth` function is a higher-order function that returns a middleware.
 // It verifies the JWT from cookies and protects routes without touching the database.
