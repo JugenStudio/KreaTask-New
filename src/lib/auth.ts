@@ -4,6 +4,8 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import type { NextAuthConfig } from 'next-auth';
 import { prisma } from '@/lib/prisma'; // Import the singleton instance
 
+// This is the authentication configuration.
+// It is used to initialize the NextAuth handlers.
 export const config = {
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -22,12 +24,11 @@ export const config = {
           where: { email: credentials.email as string },
         });
 
-        if (!user || !user.password) { // Check if user and password exist
+        if (!user || !user.password) {
           return null;
         }
         
-        // IMPORTANT: In a real app, you MUST hash passwords and compare them securely.
-        // This is a placeholder for demonstration purposes.
+        // In a real app, hash and compare passwords. This is for demonstration.
         const isPasswordValid = credentials.password === user.password;
 
         if (!isPasswordValid) {
@@ -38,17 +39,12 @@ export const config = {
           id: user.id,
           email: user.email,
           name: user.name,
-          role: user.role, // Pass the role to the session token
+          role: user.role,
         };
       },
     }),
   ],
   callbacks: {
-    // The `authorized` callback is handled by the middleware.
-    // It's cleaner to keep route protection logic in `middleware.ts`.
-    
-    // The JWT callback is invoked when a token is created.
-    // We add the user's ID and role to the token here.
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -56,24 +52,24 @@ export const config = {
       }
       return token;
     },
-    // The session callback is invoked when a session is checked.
-    // We add the custom data from the token (id and role) to the session object.
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        (session.user as any).role = token.role; // Now role is available in the session
+        (session.user as any).role = token.role;
       }
       return session;
     },
   },
   pages: {
-    signIn: '/signin', // Direct users to our custom sign-in page
+    signIn: '/signin',
   },
   session: {
-    strategy: 'jwt', // Using JWT for session management is required for middleware
+    strategy: 'jwt',
   },
   secret: process.env.AUTH_SECRET,
 } satisfies NextAuthConfig;
 
-// handlers is an object containing GET and POST methods
+// handlers contains the GET and POST methods that interact with the database.
+// DO NOT import this into middleware. Only use it in API routes.
+// auth, signIn, and signOut are edge-compatible helpers.
 export const { handlers, auth, signIn, signOut } = NextAuth(config);

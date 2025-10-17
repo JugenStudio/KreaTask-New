@@ -1,4 +1,4 @@
-import { handlers } from '@/lib/auth';
+import { handlers } from '@/lib/auth'; // Import the database-aware handlers
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { UserRole } from '@/lib/types';
