@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Mail, Lock, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
-import { useStack } from '@stackframe/stack';
+import { useStackApp } from '@stackframe/stack';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { z } from 'zod';
@@ -21,7 +21,7 @@ const signinSchema = z.object({
 
 export default function SignInPage() {
   const router = useRouter();
-  const stack = useStack();
+  const stack = useStackApp();
   const { toast } = useToast();
   const { t } = useLanguage();
 
@@ -48,7 +48,7 @@ export default function SignInPage() {
     setIsLoading(true);
     setErrors({});
 
-    const result = await stack.signIn('password', { // Use 'password' instead of 'credentials'
+    const result = await stack.signIn('password', {
       email,
       password,
     });

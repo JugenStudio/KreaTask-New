@@ -7,13 +7,13 @@ import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import BlurText from '@/components/ui/blur-text';
 import { useEffect } from 'react';
-import { useStack } from '@stackframe/stack';
+import { useStackApp } from '@stackframe/stack';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
 export default function LandingPage() {
   const { t } = useLanguage();
-  const stack = useStack();
+  const stack = useStackApp();
   const router = useRouter();
 
   useEffect(() => {

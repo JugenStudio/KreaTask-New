@@ -12,7 +12,7 @@ import { z } from 'zod';
 import { useLanguage } from '@/providers/language-provider';
 import Image from 'next/image';
 import { Separator } from '@/components/ui/separator';
-import { useStack } from '@stackframe/stack';
+import { useStackApp } from '@stackframe/stack';
 
 const signupSchema = z.object({
     name: z.string().min(1, "Nama lengkap diperlukan"),
@@ -26,7 +26,7 @@ const signupSchema = z.object({
 
 export default function SignUpPage() {
   const router = useRouter();
-  const stack = useStack();
+  const stack = useStackApp();
   const { toast } = useToast();
   const { t } = useLanguage();
 
