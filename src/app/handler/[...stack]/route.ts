@@ -1,6 +1,3 @@
+import { stackServerApp } from '@/lib/stack';
 
-import { stackServerApp } from '@/stack';
-
-const handler = stackServerApp.handler;
-
-export { handler as GET, handler as POST };
+export const { GET, POST } = stackServerApp.handlers;
