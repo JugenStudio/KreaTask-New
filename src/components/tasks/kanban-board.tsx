@@ -1,110 +1,106 @@
 
-
 "use client";
 
-import { useState, useEffect } from "react";
-import { DragDropContext, Droppable, Draggable, type DropResult, type DroppableProps } from 'react-beautiful-dnd';
+import { useState, useMemo } from "react";
+import {
+  DndContext,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { Task, TaskStatus } from "@/lib/types";
 import { useLanguage } from "@/providers/language-provider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
-import { Plus } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useTaskData } from "@/hooks/use-task-data";
 
-/**
- * StrictModeDroppable is a workaround for the `react-beautiful-dnd` library not being fully compatible
- * with React 18's Strict Mode. This component delays the rendering of the Droppable component
- * until after the initial double-render in development, preventing invariant errors.
- */
-const StrictModeDroppable = ({ children, ...props }: DroppableProps) => {
-  const [enabled, setEnabled] = useState(false);
-
-  useEffect(() => {
-    const animation = requestAnimationFrame(() => setEnabled(true));
-    return () => {
-      cancelAnimationFrame(animation);
-      setEnabled(false);
-    };
-  }, []);
-
-  if (!enabled) {
-    return null;
-  }
-
-  return <Droppable {...props}>{children}</Droppable>;
-};
-
-
 const statusColumns: TaskStatus[] = ["To-do", "In Progress", "In Review", "Completed", "Blocked"];
 
 const statusColors: Record<TaskStatus, string> = {
-    "To-do": "bg-gray-500",
-    "In Progress": "bg-blue-500",
-    "In Review": "bg-yellow-500",
-    "Completed": "bg-green-500",
-    "Blocked": "bg-red-500",
+  "To-do": "bg-gray-500",
+  "In Progress": "bg-blue-500",
+  "In Review": "bg-yellow-500",
+  "Completed": "bg-green-500",
+  "Blocked": "bg-red-500",
 };
 
-
-function KanbanTaskCard({ task, index }: { task: Task, index: number }) {
+function KanbanTaskCard({ task }: { task: Task }) {
     const { locale } = useLanguage();
     const completedSubtasks = task.subtasks?.filter(st => st.isCompleted).length || 0;
     const totalSubtasks = task.subtasks?.length || 0;
 
-    return (
-        <Draggable draggableId={task.id} index={index}>
-            {(provided, snapshot) => (
-                <div
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    {...provided.dragHandleProps}
-                    className="mb-3"
-                >
-                    <Card className={cn(
-                        "card-spotlight bg-card hover:border-primary/50 transition-colors rounded-xl",
-                        snapshot.isDragging && "shadow-lg scale-105"
-                    )}>
-                        <Link href={`/tasks/${task.id}`}>
-                            <CardContent className="p-3">
-                                <p className="text-sm font-semibold leading-tight mb-2 text-card-foreground break-words whitespace-normal">{task.title[locale]}</p>
-                                <p className="text-xs text-muted-foreground mb-3 line-clamp-2 whitespace-normal">{task.description[locale]}</p>
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+      } = useSortable({ id: task.id, data: { task } });
 
-                                {totalSubtasks > 0 && (
-                                    <div className="text-xs text-muted-foreground mb-3">
-                                        {completedSubtasks} / {totalSubtasks} sub-tasks
-                                    </div>
-                                )}
-                                
-                                <div className="flex justify-between items-center">
-                                    <div className="flex -space-x-2">
-                                    {task.assignees.map((user) => (
-                                        <Avatar key={user.id} className="h-6 w-6 border-2 border-card">
-                                        <AvatarImage src={user.avatarUrl} alt={user.name} />
-                                        <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                    ))}
-                                    </div>
-                                    <Badge variant="outline" className="text-xs">{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Badge>
-                                </div>
-                            </CardContent>
-                        </Link>
-                    </Card>
-                </div>
-            )}
-        </Draggable>
-    )
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    return (
+        <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+            <Card className={cn(
+                "card-spotlight bg-card hover:border-primary/50 transition-colors rounded-xl mb-3",
+                isDragging && "shadow-lg scale-105"
+            )}>
+                <Link href={`/tasks/${task.id}`}>
+                    <CardContent className="p-3">
+                        <p className="text-sm font-semibold leading-tight mb-2 text-card-foreground break-words whitespace-normal">{task.title[locale]}</p>
+                        <p className="text-xs text-muted-foreground mb-3 line-clamp-2 whitespace-normal">{task.description[locale]}</p>
+
+                        {totalSubtasks > 0 && (
+                            <div className="text-xs text-muted-foreground mb-3">
+                                {completedSubtasks} / {totalSubtasks} sub-tasks
+                            </div>
+                        )}
+                        
+                        <div className="flex justify-between items-center">
+                            <div className="flex -space-x-2">
+                            {task.assignees.map((user) => (
+                                <Avatar key={user.id} className="h-6 w-6 border-2 border-card">
+                                <AvatarImage src={user.avatarUrl} alt={user.name} />
+                                <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            ))}
+                            </div>
+                            <Badge variant="outline" className="text-xs">{new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Badge>
+                        </div>
+                    </CardContent>
+                </Link>
+            </Card>
+        </div>
+    );
 }
 
 function KanbanColumn({ status, tasks }: { status: TaskStatus; tasks: Task[] }) {
     const { t } = useLanguage();
-    const hasTasks = tasks.length > 0;
+    const { setNodeRef } = useSortable({ id: status });
 
     return (
-        <div className="w-full md:w-72 flex-shrink-0">
+        <div ref={setNodeRef} className="w-full md:w-72 flex-shrink-0">
             <div className="h-full bg-secondary/50 rounded-xl md:rounded-2xl">
                 <CardHeader className="p-3 flex-row justify-between items-center space-y-0">
                     <div className="flex items-center gap-2">
@@ -115,78 +111,63 @@ function KanbanColumn({ status, tasks }: { status: TaskStatus; tasks: Task[] }) 
                     </div>
                     <Badge variant="secondary" className="text-xs">{tasks.length}</Badge>
                 </CardHeader>
-                <StrictModeDroppable 
-                    droppableId={status} 
-                    isDropDisabled={false} 
-                    isCombineEnabled={false}
-                    ignoreContainerClipping={false}
-                >
-                    {(provided, snapshot) => (
-                        <CardContent 
-                            ref={provided.innerRef}
-                            {...provided.droppableProps}
-                            className={cn(
-                                "p-1.5 pt-0 transition-colors",
-                                hasTasks ? "min-h-[100px]" : "",
-                                snapshot.isDraggingOver && "bg-primary/10"
-                            )}
-                        >
-                            <div className="space-y-1">
-                                {tasks.map((task, index) => (
-                                    <KanbanTaskCard key={task.id} task={task} index={index} />
-                                ))}
-                                {provided.placeholder}
-                            </div>
-                        </CardContent>
-                    )}
-                </StrictModeDroppable>
+                <CardContent className="p-1.5 pt-0 min-h-[100px]">
+                    <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                        {tasks.map((task) => (
+                            <KanbanTaskCard key={task.id} task={task} />
+                        ))}
+                    </SortableContext>
+                </CardContent>
             </div>
         </div>
     );
 }
 
-export function KanbanBoard({ tasks, setTasks, allTasks }: { tasks: Task[], setTasks: (tasks: Task[]) => void, allTasks: Task[] }) {
+export function KanbanBoard({ tasks }: { tasks: Task[] }) {
     const { t } = useLanguage();
     const { updateTask } = useTaskData();
+    const [activeTask, setActiveTask] = useState<Task | null>(null);
 
-    const tasksByStatus = statusColumns.reduce((acc, status) => {
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+          activationConstraint: {
+            distance: 8,
+          },
+        }),
+        useSensor(KeyboardSensor, {
+          coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+    
+    const tasksByStatus = useMemo(() => statusColumns.reduce((acc, status) => {
         acc[status] = tasks.filter(task => task.status === status)
                            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
         return acc;
-    }, {} as Record<TaskStatus, Task[]>);
+    }, {} as Record<TaskStatus, Task[]>), [tasks]);
 
-    const onDragEnd = (result: DropResult) => {
-        const { source, destination, draggableId } = result;
 
-        if (!destination) {
-            return;
+    function handleDragStart(event: DragStartEvent) {
+        if (event.active.data.current?.task) {
+          setActiveTask(event.active.data.current.task);
         }
+      }
 
-        const startCol = tasksByStatus[source.droppableId as TaskStatus];
-        const endCol = tasksByStatus[destination.droppableId as TaskStatus];
-
-        if (source.droppableId === destination.droppableId) {
-            // Moving within the same column
-            const newTasks = Array.from(startCol);
-            const [reorderedItem] = newTasks.splice(source.index, 1);
-            newTasks.splice(destination.index, 0, reorderedItem);
-            
-            const updatedAllTasks = allTasks.map(t => {
-                if (t.status === source.droppableId) {
-                    const taskInNewOrder = newTasks.find(nt => nt.id === t.id);
-                    if (taskInNewOrder) return taskInNewOrder;
-                }
-                return t;
-            })
-            // This part is tricky with local state. 
-            // A better way is to update a global state or refetch.
-            // For now, we update the task status, and the visual reordering is local.
-        } else {
-            // Moving to a different column
-            const newStatus = destination.droppableId as TaskStatus;
-            updateTask(draggableId, { status: newStatus });
+    function handleDragEnd(event: DragEndEvent) {
+        const { active, over } = event;
+        setActiveTask(null);
+    
+        if (!over) return;
+    
+        const activeContainer = active.data.current?.sortable?.containerId;
+        const overContainer = over.data.current?.sortable?.containerId || over.id;
+    
+        if (active.id !== over.id && activeContainer !== overContainer) {
+          const newStatus = overContainer as TaskStatus;
+          if (statusColumns.includes(newStatus)) {
+            updateTask(active.id as string, { status: newStatus });
+          }
         }
-    };
+      }
 
     if (tasks.length === 0) {
       return (
@@ -198,19 +179,29 @@ export function KanbanBoard({ tasks, setTasks, allTasks }: { tasks: Task[], setT
   }
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
+    <DndContext
+        sensors={sensors}
+        collisionDetection={closestCorners}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+    >
         <ScrollArea className="w-full rounded-lg">
             <div className="flex flex-col md:flex-row gap-4 pb-4">
-                {statusColumns.map(status => (
-                    <KanbanColumn
-                        key={status}
-                        status={status}
-                        tasks={tasksByStatus[status]}
-                    />
-                ))}
+                <SortableContext items={statusColumns}>
+                    {statusColumns.map(status => (
+                        <KanbanColumn
+                            key={status}
+                            status={status}
+                            tasks={tasksByStatus[status]}
+                        />
+                    ))}
+                </SortableContext>
             </div>
             <ScrollBar orientation="horizontal" />
         </ScrollArea>
-    </DragDropContext>
+        <DragOverlay>
+            {activeTask ? <KanbanTaskCard task={activeTask} /> : null}
+        </DragOverlay>
+    </DndContext>
   );
 }

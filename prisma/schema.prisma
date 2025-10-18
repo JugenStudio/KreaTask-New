@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,146 +8,114 @@ datasource db {
   relationMode = "prisma"
 }
 
-model User {
-  id            String         @id @default(cuid())
-  name          String
-  email         String         @unique
-  password      String // In a real app, this should be a hash
-  avatarUrl     String?
-  role          UserRole       @default(UNASSIGNED)
-  jabatan       String         @default("Unassigned")
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  tasks         Task[]         @relation("TaskToUser")
-  revisions     Revision[]
-  comments      Comment[]
-  notifications Notification[]
+model account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  @@id([provider, providerAccountId], map: "account_provider_providerAccountId_pk")
 }
 
-model Task {
-  id              String        @id
-  titleEn         String
-  titleId         String
-  descriptionEn   String        @db.Text
-  descriptionId   String        @db.Text
-  status          String
-  category        TaskCategory
-  dueDate         DateTime
-  value           Int
-  valueCategory   ValueCategory
-  evaluator       Evaluator
-  approvedBy      String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  assigneeId      String?
-  assignees       User[]        @relation("TaskToUser")
-  revisions       Revision[]
-  comments        Comment[]
-  files           File[]
-  subtasks        Subtask[]
-  notifications   Notification[]
-
-  @@index([assigneeId])
-  @@index([status])
-  @@index([dueDate])
-}
-
-model Notification {
+model comment {
   id        String   @id
-  message   String
-  type      String
-  read      Boolean  @default(false)
-  link      String?
-  createdAt DateTime @default(now())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contentEn String?
+  contentId String?
+  isPinned  Boolean? @default(false)
+  timestamp DateTime @default(now()) @db.Timestamp(6)
+  authorId  String?
   taskId    String?
-  task      Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
 }
 
-model Comment {
-  id         String   @id
-  contentEn  String   @db.Text
-  contentId  String   @db.Text
-  isPinned   Boolean  @default(false)
-  timestamp  DateTime @default(now())
-  authorId   String
-  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  taskId     String
-  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([taskId])
-  @@index([authorId])
-}
-
-model Revision {
-  id        String   @id
-  changeEn  String   @db.Text
-  changeId  String   @db.Text
-  timestamp DateTime @default(now())
-  authorId  String
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  taskId    String
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([taskId])
-}
-
-model File {
+model file {
   id     String  @id
   name   String
-  type   String
-  url    String  @db.Text
-  size   String
-  note   String? @db.Text
-  taskId String
-  task   Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([taskId])
+  type   String? @db.VarChar(50)
+  url    String
+  size   String?
+  note   String?
+  taskId String?
 }
 
-model Subtask {
-  id          String  @id
+model notification {
+  id        String   @id
+  message   String
+  type      String?  @db.VarChar(50)
+  read      Boolean? @default(false)
+  link      String?
+  createdAt DateTime @default(now()) @db.Timestamp(6)
+  userId    String?
+  taskId    String?
+}
+
+model revision {
+  id        String   @id
+  changeEn  String?
+  changeId  String?
+  timestamp DateTime @default(now()) @db.Timestamp(6)
+  authorId  String?
+  taskId    String?
+}
+
+model session {
+  sessionToken String   @id
+  userId       String
+  expires      DateTime @db.Timestamp(6)
+}
+
+model subtask {
+  id          String   @id
   title       String
-  isCompleted Boolean @default(false)
-  taskId      String
-  task        Task    @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@index([taskId])
+  isCompleted Boolean? @default(false)
+  taskId      String?
 }
 
-enum UserRole {
-  roles_super_admin
-  roles_admin
-  roles_team_leader
-  roles_team_member
-  UNASSIGNED
-  JURNALIS
-  SOCIAL_MEDIA_OFFICER
-  DESAIN_GRAFIS
-  MARKETING
-  FINANCE
+model task {
+  id            String   @id
+  titleEn       String
+  titleId       String
+  descriptionEn String?
+  descriptionId String?
+  status        String   @db.VarChar(50)
+  category      String   @db.VarChar(50)
+  dueDate       DateTime @db.Timestamp(6)
+  createdAt     DateTime @default(now()) @db.Timestamp(6)
+  updatedAt     DateTime @default(now()) @db.Timestamp(6)
+  value         Int
+  valueCategory String?  @db.VarChar(50)
+  evaluator     String?  @db.VarChar(100)
+  approvedBy    String?
 }
 
-enum TaskCategory {
-  Low
-  Medium
-  High
-  Critical
+model tasks_to_users {
+  task_id String
+  user_id String
+
+  @@id([task_id, user_id], map: "tasks_to_users_task_id_user_id_pk")
 }
 
-enum ValueCategory {
-  Rendah
-  Menengah
-  Tinggi
-  Kritis
+model user {
+  id            String    @id
+  name          String?
+  email         String
+  emailVerified DateTime? @db.Timestamp(6)
+  image         String?
+  role          String    @default("Unassigned")
+  jabatan       String?
+  password      String?
 }
 
-enum Evaluator {
-  AI
-  Direktur_Operasional
-  Direktur_Bisnis
-  Direktur_Utama
+model verificationToken {
+  identifier String
+  token      String
+  expires    DateTime @db.Timestamp(6)
+
+  @@id([identifier, token], map: "verificationToken_identifier_token_pk")
 }

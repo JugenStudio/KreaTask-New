@@ -1,6 +1,8 @@
-import { StackAuth } from '@stackframe/stack';
+// src/app/handler/[...stack]/route.ts
+import { stackServerApp } from "@/stackServerApp";
 
-const stack = StackAuth();
-
-// Ekspor handler yang TEPAT untuk GET dan POST
-export const { GET, POST } = stack;
+// Ekspor handler untuk HTTP method
+export const GET = stackServerApp;
+export const POST = stackServerApp;
+export const PUT = stackServerApp;
+export const DELETE = stackServerApp;
