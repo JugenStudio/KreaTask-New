@@ -1,3 +1,6 @@
-import { stackServerApp } from '@/lib/stack';
+'use client';
 
-export const { GET, POST } = stackServerApp.handlers;
+import { stackServerApp } from '@/lib/stack';
+import { StackAuth } from '@stackframe/stack/nextjs';
+
+export const { GET, POST } = StackAuth(stackServerApp);
