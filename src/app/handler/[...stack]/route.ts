@@ -1,8 +1,6 @@
-import "server-only";
-import { stackServerApp } from "@/lib/stack";
+import { StackAuth } from '@stackframe/stack';
 
-// The stackServerApp object has a built-in handler that manages all
-// authentication-related requests (GET and POST).
-const handler = stackServerApp.handler;
+const stack = StackAuth();
 
-export { handler as GET, handler as POST };
+// Ekspor handler yang TEPAT untuk GET dan POST
+export const { GET, POST } = stack;
