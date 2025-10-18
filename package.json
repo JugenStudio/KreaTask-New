@@ -11,6 +11,7 @@
     "drizzle:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@auth/core": "^0.34.1",
     "@neondatabase/serverless": "^0.9.4",
     "@prisma/client": "^5.17.0",
     "@prisma/extension-accelerate": "^1.1.0",
@@ -40,6 +41,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.0.4",
     "date-fns": "^3.6.0",
+    "drizzle-orm": "^0.32.0",
     "framer-motion": "^12.23.24",
     "input-otp": "^1.4.1",
     "lucide-react": "^0.546.0",
